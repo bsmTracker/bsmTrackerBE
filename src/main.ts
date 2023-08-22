@@ -15,7 +15,10 @@ async function bootstrap() {
   app.setViewEngine('ejs');
   app.use(cookieParser());
   // app.useWebSocketAdapter(new IoAdapter(app));
-  app.enableCors({});
+  app.enableCors({
+    origin: '*',
+    credentials: true,
+  });
 
   app.useStaticAssets(path.join(__dirname, 'uploads'), {
     prefix: '/uploads',
