@@ -3,7 +3,6 @@ import { AppModule } from './app.module';
 import * as cookieParser from 'cookie-parser';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import * as path from 'path';
-import { ValidationPipe } from '@nestjs/common';
 import * as fs from 'fs';
 import * as dotenv from 'dotenv';
 import { createFolder } from './Utils/multer';
@@ -11,7 +10,11 @@ import { createFolder } from './Utils/multer';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.enableCors({
-    origin: ['http://localhost:3001'],
+    origin: [
+      'https://bsm-tracker-fe.vercel.app',
+      'http://localhost:3001',
+      'http://localhost:3000',
+    ],
     credentials: true,
   });
   app.setGlobalPrefix('api');
