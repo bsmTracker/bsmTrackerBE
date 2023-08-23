@@ -11,7 +11,7 @@ import { createFolder } from './Utils/multer';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.enableCors({
-    origin: '*',
+    origin: ['http://localhost:3001'],
     credentials: true,
   });
   app.setGlobalPrefix('api');
@@ -22,17 +22,6 @@ async function bootstrap() {
     prefix: '/uploads',
   });
   createFolder('audio');
-
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-    }),
-  );
   await app.listen(3000);
 }
 
