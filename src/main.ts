@@ -10,15 +10,17 @@ import { createFolder } from './Utils/multer';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.enableCors({
+    origin: [
+      'http://localhost:3001',
+      'https://bsm-tracker-grrb9jd73-bssmtracker.vercel.app',
+    ],
+    credentials: true,
+  });
   app.setGlobalPrefix('api');
   app.setBaseViewsDir(path.join(__dirname, '..', 'src', 'views'));
   app.setViewEngine('ejs');
   app.use(cookieParser());
-  app.enableCors({
-    origin: true,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true,
-  });
   app.useStaticAssets(path.join(__dirname, 'uploads'), {
     prefix: '/uploads',
   });
