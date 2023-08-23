@@ -15,7 +15,7 @@ import { UserService } from 'src/user/user.service';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     UserModule,
   ],
-  exports: [TypeOrmModule, JwtModule, AuthService, UserService],
+  exports: [JwtModule, AuthService, UserService],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, UserService],
 })

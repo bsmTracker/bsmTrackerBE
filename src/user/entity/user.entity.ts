@@ -1,4 +1,3 @@
-import { Token } from 'src/auth/entity/token.entity';
 import {
   BaseEntity,
   Column,
@@ -39,11 +38,6 @@ export class User extends BaseEntity {
     default: LevelType.STUDENT,
   })
   level: LevelType;
-
-  @OneToMany((type) => Token, (token) => token.user, {
-    cascade: true,
-  })
-  refereshTokens: Token[];
 
   @CreateDateColumn()
   createdAt: Date;
