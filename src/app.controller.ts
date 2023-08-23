@@ -7,6 +7,6 @@ export class AppController {
 
   @Get()
   getDescription(): string {
-    return 'BsmTracker';
+    return 'BsmTracker_BE';
   }
 }
