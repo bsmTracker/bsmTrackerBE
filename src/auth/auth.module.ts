@@ -10,7 +10,6 @@ import { UserModule } from 'src/user/user.module';
 
 import { UserService } from 'src/user/user.service';
 import { Token } from './entity/token.entity';
-import { WSAuthUtil } from './WS-auth.util';
 
 @Module({
   imports: [
@@ -19,8 +18,8 @@ import { WSAuthUtil } from './WS-auth.util';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     UserModule,
   ],
-  exports: [TypeOrmModule, WSAuthUtil, JwtModule, AuthService, UserService],
+  exports: [TypeOrmModule, JwtModule, AuthService, UserService],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, UserService, WSAuthUtil],
+  providers: [AuthService, JwtStrategy, UserService],
 })
 export class AuthModule {}

@@ -24,28 +24,15 @@ import { User } from 'src/user/entity/user.entity';
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @Get('bsm')
-  async bsm_login(
-    @Res({ passthrough: true }) res: Response,
-    @Query('code') authCode: string,
-  ): Promise<any> {
-    // return authCode;
-    return this.authService.oauthBsm(res, authCode);
-  }
-
   @Post('/getUser')
   @UseGuards(AuthGuard)
   isAuthenticated(@Req() req: Request, @GetUser() user: User) {
-    console.log('67890');
     return user;
   }
 
   @Post('/signup')
   @UsePipes(ValidationPipe)
-  async registerAccount(
-    @Req() req: Request,
-    @Body() userDto: RegisterUserDto,
-  ): Promise<any> {
+  async registerAccount(@Body() userDto: RegisterUserDto): Promise<any> {
     return await this.authService.registerUser(userDto);
   }
 
@@ -57,12 +44,12 @@ export class AuthController {
     return await this.authService.login(res, userDto);
   }
 
-  @Post('/logout')
-  @UseGuards(AuthGuard)
-  logout(@Req() req: Request, @Res() res: Response): any {
-    // res.setHeader('Authorization', 'Bearer ');
-    res.clearCookie('accessToken');
-    res.clearCookie('refreshToken');
-    return res.json();
-  }
+  // @Post('/logout')
+  // @UseGuards(AuthGuard)
+  // logout(@Req() req: Request, @Res() res: Response): any {
+  //   // res.setHeader('Authorization', 'Bearer ');
+  //   res.clearCookie('accessToken');
+  //   res.clearCookie('refreshToken');
+  //   return res.json();
+  // }
 }
