@@ -37,7 +37,7 @@ export class AuthController {
   @UseGuards(AuthGuard)
   isAuthenticated(@Req() req: Request, @GetUser() user: User) {
     console.log('67890');
-    return req.user;
+    return user;
   }
 
   @Post('/signup')

@@ -14,8 +14,11 @@ async function bootstrap() {
   app.setBaseViewsDir(path.join(__dirname, '..', 'src', 'views'));
   app.setViewEngine('ejs');
   app.use(cookieParser());
-  app.enableCors();
-
+  app.enableCors({
+    origin: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
   app.useStaticAssets(path.join(__dirname, 'uploads'), {
     prefix: '/uploads',
   });

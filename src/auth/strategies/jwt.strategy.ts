@@ -16,8 +16,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
-        (request: Request) =>
-          request?.cookies?.accessToken || request?.cookies?.refreshToken,
+        (request: Request) => {
+          console.log(
+            request.cookies?.accessToken,
+            request.cookies?.refreshToken,
+          );
+          return (
+            request?.cookies?.accessToken || request?.cookies?.refreshToken
+          );
+        },
       ]),
       ignoreExpiration: false, //만료기한을 무시할것인가
       secretOrKey: process.env.SECRET_KEY,
@@ -26,6 +33,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(req: Request, user: User): Promise<any> {
+    console.log(user.id, '_----_');
     if (user.id) {
       const userInfo: User = await this.userService.getUserById(user.id);
       console.log(userInfo);
@@ -39,9 +47,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     if (refreshToken === undefined) {
       throw new UnauthorizedException();
     }
-    const tokenInfo = await this.authService.getRecentRefreshToken(
-      refreshToken,
-    );
+    const tokenInfo =
+      await this.authService.getRecentRefreshToken(refreshToken);
     if (tokenInfo === null) {
       throw new UnauthorizedException();
     }
@@ -66,6 +73,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       httpOnly: true,
       maxAge: 1000 * 60 * 60,
     });
+
     // req.user = userInfo;
     return userInfo;
   }
