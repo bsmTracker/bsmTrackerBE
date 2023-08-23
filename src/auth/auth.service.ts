@@ -10,7 +10,6 @@ import { JwtService } from '@nestjs/jwt';
 import { User } from 'src/user/entity/user.entity';
 import { RegisterUserDto } from '../user/dto/registerUser.dto';
 import { UserService } from 'src/user/user.service';
-import { Token } from './entity/token.entity';
 import { randomBytes } from 'crypto';
 import { Response } from 'express';
 import BsmOauth, { BsmOauthError, BsmOauthErrorType } from 'bsm-oauth';

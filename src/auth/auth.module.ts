@@ -9,11 +9,8 @@ import { AuthGuard } from './guards/auth.guard';
 import { UserModule } from 'src/user/user.module';
 
 import { UserService } from 'src/user/user.service';
-import { Token } from './entity/token.entity';
-
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Token]),
     JwtModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     UserModule,
