@@ -8,15 +8,10 @@ import * as dotenv from 'dotenv';
 import { createFolder } from './Utils/multer';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  app.enableCors({
-    origin: [
-      'https://bsm-tracker-fe.vercel.app',
-      'http://localhost:3001',
-      'http://localhost:3000',
-    ],
-    credentials: true,
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    cors: true,
   });
+  app.enableCors();
   app.setGlobalPrefix('api');
   app.setBaseViewsDir(path.join(__dirname, '..', 'src', 'views'));
   app.setViewEngine('ejs');
