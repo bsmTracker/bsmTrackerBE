@@ -9,11 +9,10 @@ import { createFolder } from './Utils/multer';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    cors: true,
-  });
-  app.enableCors({
-    origin: '*',
-    credentials: true,
+    cors: {
+      origin: '*',
+      credentials: true,
+    },
   });
   app.setGlobalPrefix('api');
   app.setBaseViewsDir(path.join(__dirname, '..', 'src', 'views'));
