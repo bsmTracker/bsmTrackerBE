@@ -10,12 +10,20 @@ import { createFolder } from './Utils/multer';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     cors: {
-      origin: ['http://localhost:3000', 'http://localhost:3001'],
+      origin: [
+        'https://bsm-tracker-fe.vercel.app',
+        'http://localhost:3000',
+        'http://localhost:3001',
+      ],
       credentials: true,
     },
   });
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    origin: [
+      'https://bsm-tracker-fe.vercel.app',
+      'http://localhost:3000',
+      'http://localhost:3001',
+    ],
     credentials: true,
   });
   app.setGlobalPrefix('api');

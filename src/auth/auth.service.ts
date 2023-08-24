@@ -41,15 +41,11 @@ export class AuthService {
     if (!userFind) {
       throw new UnauthorizedException('아이디가 잘못되었습니다');
     }
-    if (!userFind.password) {
-      throw new UnauthorizedException('BSM으로 회원가입한 유저입니다!');
-    }
     await this.userService.verifyPassword(
       userLoginDto.password,
       userFind.password,
     );
     const tokenObj = await this.createJwtToken(userFind);
-    res.cookie('accessToken', tokenObj.accessToken);
     res.json(tokenObj);
   }
 }

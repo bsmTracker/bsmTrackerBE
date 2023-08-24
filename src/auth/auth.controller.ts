@@ -1,11 +1,7 @@
 import {
   Body,
   Controller,
-  Get,
   Post,
-  Put,
-  Query,
-  Render,
   Req,
   Res,
   UseGuards,
