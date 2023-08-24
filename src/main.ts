@@ -14,6 +14,7 @@ async function bootstrap() {
   app.enableCors({
     origin: ['http://localhost:3000', 'https://bsm-tracker-fe.vercel.app'],
     credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   });
   app.setGlobalPrefix('api');
   app.setBaseViewsDir(path.join(__dirname, '..', 'src', 'views'));
