@@ -49,6 +49,7 @@ export class AuthService {
       userFind.password,
     );
     const tokenObj = await this.createJwtToken(userFind);
+    res.cookie('accessToken', tokenObj.accessToken);
     res.json(tokenObj);
   }
 }
