@@ -29,7 +29,6 @@ async function bootstrap() {
 
 bootstrap();
 
-//
 export const ROOT_PATH = __dirname;
 export const ENV_PATH = path.join(
   ROOT_PATH,
