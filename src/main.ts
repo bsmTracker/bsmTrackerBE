@@ -14,6 +14,10 @@ async function bootstrap() {
       credentials: true,
     },
   });
+  app.enableCors({
+    origin: '*',
+    credentials: true,
+  });
   app.setGlobalPrefix('api');
   app.setBaseViewsDir(path.join(__dirname, '..', 'src', 'views'));
   app.setViewEngine('ejs');
