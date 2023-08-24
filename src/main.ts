@@ -11,7 +11,10 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     cors: true,
   });
-  app.enableCors();
+  app.enableCors({
+    origin: ['http://localhost:3000', 'https://bsm-tracker-fe.vercel.app'],
+    credentials: true,
+  });
   app.setGlobalPrefix('api');
   app.setBaseViewsDir(path.join(__dirname, '..', 'src', 'views'));
   app.setViewEngine('ejs');
