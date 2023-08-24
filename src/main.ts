@@ -11,7 +11,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     cors: {
       origin: '*',
-      // credentials: true,
+      credentials: true,
     },
   });
   app.setGlobalPrefix('api');
