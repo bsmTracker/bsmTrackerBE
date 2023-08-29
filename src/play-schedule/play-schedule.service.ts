@@ -5,7 +5,6 @@ import {
   NotFoundException,
   OnApplicationBootstrap,
 } from '@nestjs/common';
-import { PlaylistService } from 'src/playlist/playlist.service';
 import { ScheduleService } from 'src/schedule/schedule.service';
 import { PlayScheduleDetailDto } from './dto/playScheduleDetail.dto';
 import {
@@ -20,6 +19,7 @@ import { PlayerService } from 'src/player/player.service';
 import { AudioService } from 'src/audio/audio.service';
 import { SpeakerService } from 'src/speaker/speaker.service';
 import { TtsService } from 'src/tts/tts.service';
+import Track from 'src/track/entity/Track.entity';
 
 @Injectable()
 export class PlayScheduleService implements OnApplicationBootstrap {
@@ -27,11 +27,12 @@ export class PlayScheduleService implements OnApplicationBootstrap {
     private scheduleService: ScheduleService,
     private audioService: AudioService,
     private ttsService: TtsService,
-    @InjectRepository(PlaySchedule)
-    private playScheduleRepository: Repository<PlaySchedule>,
-    private playlistService: PlaylistService,
     private playerService: PlayerService,
     private speakerService: SpeakerService,
+    @InjectRepository(PlaySchedule)
+    private playScheduleRepository: Repository<PlaySchedule>,
+    @InjectRepository(Track)
+    private trackRepository: Repository<Track>,
   ) {
     //스케쥴 싹다 불러와서 서버에 스케쥴 채우기
   }
@@ -176,6 +177,7 @@ export class PlayScheduleService implements OnApplicationBootstrap {
         id: playScheduleId,
       },
     );
+    console.log('FGHJKLFGHJKL');
     // //켜져있었던 플레이스케쥴이라면
     // if (playSchedule?.active) {
     //   await this.activePlaySchedule(playSchedule.id);
@@ -242,10 +244,30 @@ export class PlayScheduleService implements OnApplicationBootstrap {
     }
     if (playSchedule.playlist) {
       const playlistTimeout = setTimeout(async () => {
-        await this.playlistService.play(playSchedule.playlist.id);
+        await this.playTrack(playSchedule.playlist.id);
       }, timeStamp_ms);
       PlayScheduleService.playScheduleTimeoutList.push(playlistTimeout);
     }
+  }
+
+  static trackTimeout = null;
+
+  async playTrack(playlistId: number, order = 1) {
+    if (!playlistId) return;
+    const track = await this.trackRepository.findOne({
+      where: {
+        order,
+        playlistId,
+      },
+    });
+    if (!track) {
+      this.playerService.pause();
+      return;
+    }
+    this.playerService.play(track.audio);
+    PlayScheduleService.trackTimeout = setTimeout(() => {
+      this.playTrack(playlistId, order + 1);
+    }, track.duration_ms);
   }
 
   async stopPlaySchedule() {
@@ -253,8 +275,10 @@ export class PlayScheduleService implements OnApplicationBootstrap {
     PlayScheduleService.playScheduleTimeoutList.map((ScheduleTimeOut) => {
       clearTimeout(ScheduleTimeOut);
     });
+    if (PlayScheduleService.trackTimeout) {
+      clearInterval(PlayScheduleService.trackTimeout);
+    }
     this.playerService.pause();
-    await this.playlistService.pause();
     PlayScheduleService.playScheduleTimeoutList = [];
   }
 

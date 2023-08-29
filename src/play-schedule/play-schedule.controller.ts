@@ -19,7 +19,6 @@ import { LevelType } from 'src/user/level-type';
 import { Level } from 'src/auth/decorator/level.decorator';
 import { PlayScheduleDetailDto } from './dto/playScheduleDetail.dto';
 import { PlaySchedule } from './entity/playSchedule.entity';
-import { PlayScheduleTimeDto } from './dto/playScheduleTime';
 
 @Controller('play-schedule')
 export class PlayScheduleController {

@@ -10,13 +10,9 @@ export class PlaylistService {
   constructor(
     @InjectRepository(Playlist)
     private playlistRepository: Repository<Playlist>, // private trackService: TrackService,
-    private playerService: PlayerService,
     @InjectRepository(Track)
     private trackRepository: Repository<Track>,
   ) {}
-
-  static trackTimeoutList = [];
-  static trackTimeout = null;
 
   async getPlaylists(): Promise<Playlist[]> {
     const playlistsInfo: Playlist[] = await this.playlistRepository.find({
@@ -69,30 +65,6 @@ export class PlaylistService {
     }
     await this.trackRepository.remove(playlist.tracks);
     await this.playlistRepository.remove(playlist);
-  }
-
-  async play(playlistId: number, order = 1) {
-    if (!playlistId) return;
-    const track = await this.trackRepository.findOne({
-      where: {
-        order,
-        playlistId,
-      },
-    });
-    if (!track) {
-      this.pause();
-      return;
-    }
-    this.playerService.play(track.audio);
-    PlaylistService.trackTimeout = setTimeout(() => {
-      this.play(playlistId, order + 1);
-    }, track.duration_ms);
-  }
-
-  async pause() {
-    if (PlaylistService.trackTimeout) {
-      clearInterval(PlaylistService.trackTimeout);
-    }
   }
 
   async updatePlaylistMetaData(playlistId: number) {
