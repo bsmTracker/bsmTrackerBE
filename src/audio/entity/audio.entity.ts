@@ -1,12 +1,6 @@
 import Track from 'src/track/entity/Track.entity';
 import { Tts } from 'src/tts/entity/tts.entity';
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  OneToOne,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
 export class Audio {
@@ -23,12 +17,4 @@ export class Audio {
 
   @Column()
   duration_ms: number;
-
-  // @OneToOne(() => Track, {
-  //   onDelete: 'CASCADE',
-  // })
-  // @JoinColumn({
-  //   referencedColumnName: 'audioId',
-  // })
-  // track: Track;
 }

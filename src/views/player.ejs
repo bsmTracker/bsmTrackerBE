@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -28,21 +28,17 @@
     socket.on('pause', function () {
       if (currentAudio) {
         currentAudio.pause();
-        currentAudio = null;
       }
+      currentAudio = null;
     });
 
     socket.on('play', function (data) {
       if (currentAudio) {
         currentAudio.pause();
-        currentAudio = null;
       }
       currentAudio = new Audio(data.src);
       currentAudio.currentTime = 0;
       currentAudio.play();
-      currentAudio.onended = () => {
-        currentAudio = null;
-      };
     });
   </script>
 </html>

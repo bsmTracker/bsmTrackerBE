@@ -55,7 +55,6 @@ export class PlayScheduleService implements OnApplicationBootstrap {
           await this.deActivePlaySchedule(playSchedule.id);
           return;
         }
-        console.log('^&*()____________________-');
         await this.activePlaySchedule(playSchedule.id);
       } catch (e) {}
     });
@@ -177,11 +176,6 @@ export class PlayScheduleService implements OnApplicationBootstrap {
         id: playScheduleId,
       },
     );
-    console.log('FGHJKLFGHJKL');
-    // //켜져있었던 플레이스케쥴이라면
-    // if (playSchedule?.active) {
-    //   await this.activePlaySchedule(playSchedule.id);
-    // }
   }
 
   async isCurrentPlaySchedule(playSchedule: PlaySchedule): Promise<boolean> {
@@ -244,7 +238,7 @@ export class PlayScheduleService implements OnApplicationBootstrap {
     }
     if (playSchedule.playlist) {
       const playlistTimeout = setTimeout(async () => {
-        await this.playTrack(playSchedule.playlist.id);
+        await this.playlistPlay(playSchedule.playlist.id);
       }, timeStamp_ms);
       PlayScheduleService.playScheduleTimeoutList.push(playlistTimeout);
     }
@@ -252,7 +246,7 @@ export class PlayScheduleService implements OnApplicationBootstrap {
 
   static trackTimeout = null;
 
-  async playTrack(playlistId: number, order = 1) {
+  async playlistPlay(playlistId: number, order = 1) {
     if (!playlistId) return;
     const track = await this.trackRepository.findOne({
       where: {
@@ -266,7 +260,7 @@ export class PlayScheduleService implements OnApplicationBootstrap {
     }
     this.playerService.play(track.audio);
     PlayScheduleService.trackTimeout = setTimeout(() => {
-      this.playTrack(playlistId, order + 1);
+      this.playlistPlay(playlistId, order + 1);
     }, track.duration_ms);
   }
 
@@ -301,7 +295,7 @@ export class PlayScheduleService implements OnApplicationBootstrap {
         `"${exsistPlaySchedule?.name}"스케쥴과 겹쳐 활성화 할 수 없습니다!`,
       );
     }
-    // /** 만약 스케쥴 시작시간은 지났는데, 스케쥴 종료시간은 지나지 않은경우 바로 플레이리스트를 재생해준다. */
+
     let scheduleStartTimeStr = this.getSchedulerTimeString(
       playSchedule.startTime,
     );

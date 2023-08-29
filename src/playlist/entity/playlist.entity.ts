@@ -1,12 +1,10 @@
 import {
   BaseEntity,
-  BeforeRemove,
   Column,
   CreateDateColumn,
   Entity,
   OneToMany,
   PrimaryGeneratedColumn,
-  RemoveEvent,
   UpdateDateColumn,
 } from 'typeorm';
 import Track from '../../track/entity/Track.entity';
@@ -21,9 +19,7 @@ export default class Playlist extends BaseEntity {
   @Column()
   name: string;
 
-  @OneToMany((type) => PlaySchedule, (playtime) => playtime.playlist, {
-    onDelete: 'CASCADE',
-  })
+  @OneToMany((type) => PlaySchedule, (playtime) => playtime.playlist)
   playSchedules: PlaySchedule[];
 
   @Column({
