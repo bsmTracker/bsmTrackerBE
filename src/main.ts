@@ -8,24 +8,7 @@ import * as dotenv from 'dotenv';
 import { createFolder } from './Utils/multer';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    // cors: {
-    //   origin: [
-    //     'https://bsm-tracker-fe.vercel.app',
-    //     'http://localhost:3000',
-    //     'http://localhost:3001',
-    //   ],
-    //   credentials: true,
-    // },
-  });
-  // app.enableCors({
-  //   origin: [
-  //     'https://bsm-tracker-fe.vercel.app',
-  //     'http://localhost:3000',
-  //     'http://localhost:3001',
-  //   ],
-  //   credentials: true,
-  // });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {});
   app.setGlobalPrefix('api');
   app.setBaseViewsDir(path.join(__dirname, '..', 'src', 'views'));
   app.setViewEngine('ejs');
@@ -34,7 +17,7 @@ async function bootstrap() {
     prefix: '/uploads',
   });
   createFolder('audio');
-  await app.listen(3000);
+  await app.listen(8080);
 }
 
 bootstrap();

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Post,
   Req,
   Res,
@@ -20,7 +21,7 @@ import { User } from 'src/user/entity/user.entity';
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @Post('/getUser')
+  @Get('/getUser')
   @UseGuards(AuthGuard)
   isAuthenticated(@Req() req: Request, @GetUser() user: User) {
     return user;

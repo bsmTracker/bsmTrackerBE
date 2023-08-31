@@ -10,10 +10,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(private userService: UserService) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
-        (request: Request) => {
-          console.log(request?.headers['access_token'], '------');
-          return request?.headers['access_token'];
-        },
+        (request: Request) => request?.headers['access_token'],
       ]),
       ignoreExpiration: false, //만료기한을 무시할것인가
       secretOrKey: process.env.SECRET_KEY,

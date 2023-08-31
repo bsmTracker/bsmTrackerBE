@@ -21,7 +21,7 @@ export class PlayerService implements OnApplicationBootstrap {
   play(audio: Audio) {
     this.pause();
     let src = '';
-    src = audio.path;
+    src += audio.path;
     PlayerService.nowPlaying = {
       audio,
       src,

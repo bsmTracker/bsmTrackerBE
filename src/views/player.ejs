@@ -36,6 +36,7 @@
       if (currentAudio) {
         currentAudio.pause();
       }
+      console.log(data.src);
       currentAudio = new Audio(data.src);
       currentAudio.currentTime = 0;
       currentAudio.play();
