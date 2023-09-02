@@ -14,6 +14,7 @@ import { PlayerService } from 'src/player/player.service';
 import { SpeakerService } from 'src/speaker/speaker.service';
 import { SpeakerModule } from 'src/speaker/speaker.module';
 import { TrackModule } from 'src/track/track.module';
+import { PlayScheduleGateway } from './play-schedule.gateway';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { TrackModule } from 'src/track/track.module';
   controllers: [PlayScheduleController],
   providers: [
     PlayScheduleService,
+    PlayScheduleGateway,
     ScheduleService,
     AudioService,
     TtsService,

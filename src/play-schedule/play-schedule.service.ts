@@ -1,9 +1,11 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
   OnApplicationBootstrap,
+  forwardRef,
 } from '@nestjs/common';
 import { ScheduleService } from 'src/schedule/schedule.service';
 import { PlayScheduleDetailDto } from './dto/playScheduleDetail.dto';
@@ -20,6 +22,10 @@ import { AudioService } from 'src/audio/audio.service';
 import { SpeakerService } from 'src/speaker/speaker.service';
 import { TtsService } from 'src/tts/tts.service';
 import Track from 'src/track/entity/Track.entity';
+import { PlayScheduleGateway } from './play-schedule.gateway';
+
+// 은근 고친게 많다, 무턱대고 서두르는것은 좋지 않다 하하하핳 ,,,,,,;;;;
+// 발견하고 고쳐서 행복 하다 하하하핳 ,,,,,,,,,,
 
 @Injectable()
 export class PlayScheduleService implements OnApplicationBootstrap {
@@ -38,6 +44,10 @@ export class PlayScheduleService implements OnApplicationBootstrap {
   }
 
   static playScheduleTimeoutList = [];
+  private static currentPlaySchedule: PlaySchedule = null;
+
+  @Inject(forwardRef(() => PlayScheduleGateway))
+  private playScheduleGateway: PlayScheduleGateway;
 
   async onApplicationBootstrap() {
     await this.loadPlaySchedule();
@@ -58,6 +68,22 @@ export class PlayScheduleService implements OnApplicationBootstrap {
         await this.activePlaySchedule(playSchedule.id);
       } catch (e) {}
     });
+  }
+
+  private setNowPlaySchedule(playSchedule: PlaySchedule | null) {
+    PlayScheduleService.currentPlaySchedule = playSchedule;
+    this.sendNowPlaySchedule();
+  }
+
+  private getNowPlaySchedule() {
+    return PlayScheduleService.currentPlaySchedule;
+  }
+
+  public sendNowPlaySchedule() {
+    this.playScheduleGateway.server.emit(
+      'now-play-schedule',
+      this.getNowPlaySchedule(),
+    );
   }
 
   async findOverlappingPlayScheduleForActive(playScheduleId: number) {
@@ -178,7 +204,7 @@ export class PlayScheduleService implements OnApplicationBootstrap {
     );
   }
 
-  async isCurrentPlaySchedule(playSchedule: PlaySchedule): Promise<boolean> {
+  async canBeCurrentPlaySchedule(playSchedule: PlaySchedule): Promise<boolean> {
     const nowTimeSize = this.getTimeSize_s(this.getNowTime());
     const todayStr = this.getTodayStr();
     // ** 만약 daysOfWeek 형식의 재생일정이라면
@@ -202,7 +228,10 @@ export class PlayScheduleService implements OnApplicationBootstrap {
       }
     }
     if (playSchedule.scheduleType === ScheduleEnum.EVENT) {
-      if (playSchedule.endDate < todayStr) {
+      if (playSchedule.endDate > todayStr) {
+        return false;
+      }
+      if (playSchedule.startDate < todayStr) {
         return false;
       }
     }
@@ -216,25 +245,24 @@ export class PlayScheduleService implements OnApplicationBootstrap {
 
   //nowTimeStampSize_ms <--- 현재 얼마나 시간이 지났는지
   async startPlaySchedule(playSchedule: PlaySchedule) {
+    this.setNowPlaySchedule(playSchedule);
     let timeStamp_ms = 0;
+    let term = 500;
     PlayScheduleService.playScheduleTimeoutList = [];
-    const isCurrentPlaySchedule =
-      await this.isCurrentPlaySchedule(playSchedule);
-    if (!isCurrentPlaySchedule) return;
     this.speakerService.setVolume(playSchedule.volume);
     if (playSchedule.startMelody) {
       const startMelodyTimeout = setTimeout(async () => {
         this.playerService.play(playSchedule.startMelody);
       }, timeStamp_ms);
       PlayScheduleService.playScheduleTimeoutList.push(startMelodyTimeout);
-      timeStamp_ms += playSchedule.startMelody.duration_ms;
+      timeStamp_ms += playSchedule.startMelody.duration_ms + term;
     }
     if (playSchedule.tts) {
       const startTTSTimeout = setTimeout(async () => {
         this.playerService.play(playSchedule.tts.audio);
       }, timeStamp_ms);
       PlayScheduleService.playScheduleTimeoutList.push(startTTSTimeout);
-      timeStamp_ms += playSchedule.tts.audio.duration_ms;
+      timeStamp_ms += playSchedule.tts.audio.duration_ms + term;
     }
     if (playSchedule.playlist) {
       const playlistTimeout = setTimeout(async () => {
@@ -265,6 +293,7 @@ export class PlayScheduleService implements OnApplicationBootstrap {
   }
 
   async stopPlaySchedule() {
+    this.setNowPlaySchedule(null);
     this.speakerService.setVolume(0);
     PlayScheduleService.playScheduleTimeoutList.map((ScheduleTimeOut) => {
       clearTimeout(ScheduleTimeOut);
@@ -300,32 +329,28 @@ export class PlayScheduleService implements OnApplicationBootstrap {
       playSchedule.startTime,
     );
     this.scheduleService.addCronJob(
-      `play-schedule-${playSchedule.id}`,
+      `start-schedule-${playSchedule.id}`,
       scheduleStartTimeStr,
       async () => {
-        if (playSchedule.scheduleType === ScheduleEnum.EVENT) {
-          if (
-            playSchedule.startDate < this.getTodayStr() ||
-            playSchedule.endDate > this.getTodayStr()
-          ) {
-            return;
-          }
-        }
         try {
-          await this.startPlaySchedule(playSchedule);
+          if (await this.canBeCurrentPlaySchedule(playSchedule)) {
+            await this.startPlaySchedule(playSchedule);
+          }
         } catch (e) {}
       },
     );
     let scheduleEndTimeStr = this.getSchedulerTimeString(playSchedule.endTime);
     this.scheduleService.addCronJob(
-      `pause-schedule-${playSchedule.id}`,
+      `stop-schedule-${playSchedule.id}`,
       scheduleEndTimeStr,
       async () => {
-        console.log('Pause-------');
         try {
-          await this.stopPlaySchedule();
           if (this.isExpiredSchedule(playSchedule)) {
             await this.deActivePlaySchedule(playSchedule.id);
+          }
+          const currentPlaySchedule = this.getNowPlaySchedule();
+          if (currentPlaySchedule?.id === playSchedule?.id) {
+            await this.stopPlaySchedule();
           }
         } catch (e) {}
       },
@@ -348,11 +373,12 @@ export class PlayScheduleService implements OnApplicationBootstrap {
       },
     });
     if (!playSchedule) throw new NotFoundException();
-    if (await this.isCurrentPlaySchedule(playSchedule)) {
+    const currentPlaySchedule = this.getNowPlaySchedule();
+    if (currentPlaySchedule?.id === playSchedule?.id) {
       await this.stopPlaySchedule();
     }
-    this.scheduleService.deleteCronJob(`play-schedule-${playSchedule.id}`);
-    this.scheduleService.deleteCronJob(`pause-schedule-${playSchedule.id}`);
+    this.scheduleService.deleteCronJob(`start-schedule-${playSchedule.id}`);
+    this.scheduleService.deleteCronJob(`stop-schedule-${playSchedule.id}`);
     await this.playScheduleRepository.update(
       {
         id: playSchedule.id,
@@ -366,30 +392,24 @@ export class PlayScheduleService implements OnApplicationBootstrap {
   async checkPlayScheduleTimePolicy(
     playScheduleTimeDto: PlayScheduleTimeDto,
   ): Promise<void> {
-    if (playScheduleTimeDto.startDate && playScheduleTimeDto.endDate) {
+    console.log(playScheduleTimeDto);
+    if (
+      JSON.stringify(playScheduleTimeDto.startTime) ===
+      JSON.stringify(playScheduleTimeDto.endTime)
+    ) {
+      throw new BadRequestException(
+        '스케쥴 시작시간과 종료시간은 같게 설정 할 수 없어요',
+      );
+    }
+    if (playScheduleTimeDto.scheduleType === ScheduleEnum.EVENT) {
       if (playScheduleTimeDto.startDate > playScheduleTimeDto.endDate) {
         throw new BadRequestException(
           '재생 시작 일자가 재생 마지막 일보다 뒤로 갈 수 없습니다',
         );
       }
-      // if (playScheduleTimeDto.endDate < this.getTodayStr()) {
-      //   throw new HttpException(
-      //     '재생 마지막 일이 이미 지나갔습니다',
-      //     HttpStatus.BAD_REQUEST,
-      //   );
-      // }
-      // const nowTimeSize = this.getTimeSize_s(this.getNowTime());
-      // if (
-      //   playScheduleTimeDto.endDate === this.getTodayStr() &&
-      //   this.getTimeSize_s(playScheduleTimeDto.endTime) <= nowTimeSize
-      // ) {
-      //   throw new HttpException(
-      //     '보내주신 재생 마지막일의 시간이 이미 지나가서 추가 할 수 없습니다.',
-      //     HttpStatus.BAD_GATEWAY,
-      //   );
-      // }
     }
   }
+
   async getPlaySchedules() {
     return await this.playScheduleRepository.find();
   }
@@ -470,6 +490,65 @@ export class PlayScheduleService implements OnApplicationBootstrap {
     return findedSchedules?.[0];
   }
 
+  private async findOverlappingEventSchedule({
+    startTime,
+    endTime,
+    startDate,
+    endDate,
+  }: {
+    startTime: Time;
+    endTime: Time;
+    startDate: string;
+    endDate: string;
+  }): Promise<PlaySchedule | null> {
+    let playSchedules: PlaySchedule[] = await this.playScheduleRepository.find({
+      where: {
+        scheduleType: ScheduleEnum.EVENT,
+        active: true,
+      },
+    });
+    const startTimeSize = this.getTimeSize_s(startTime);
+    const endTimeSize = this.getTimeSize_s(endTime);
+    playSchedules = playSchedules.filter((findedSchedule: PlaySchedule) => {
+      const isOverlappingTime = this.findOverlappingTime(
+        startTimeSize,
+        findedSchedule.startTimeSize,
+        endTimeSize,
+        findedSchedule.endTimeSize,
+      );
+      if (isOverlappingTime === false) {
+        return true;
+      }
+      if (
+        startDate >= findedSchedule.startDate &&
+        startDate <= findedSchedule.endDate
+      ) {
+        return true;
+      }
+      if (
+        findedSchedule.startDate >= startDate &&
+        findedSchedule.startDate <= endDate
+      ) {
+        return true;
+      }
+      if (
+        endDate >= findedSchedule.startDate &&
+        endDate <= findedSchedule.endDate
+      ) {
+        return true;
+      }
+      if (
+        findedSchedule.endDate >= startDate &&
+        findedSchedule.endDate <= endDate
+      ) {
+        return true;
+      }
+      return false;
+    });
+    //시간 겹치는거 찾는거해야한다.
+    return playSchedules?.[0];
+  }
+
   findOverlappingTime(
     aStartTimeSize,
     bStartTimeSize,
@@ -515,56 +594,6 @@ export class PlayScheduleService implements OnApplicationBootstrap {
       }
     }
     return false;
-  }
-
-  private async findOverlappingEventSchedule({
-    startTime,
-    endTime,
-    startDate,
-    endDate,
-  }: {
-    startTime: Time;
-    endTime: Time;
-    startDate: string;
-    endDate: string;
-  }): Promise<PlaySchedule | null> {
-    let playSchedules: PlaySchedule[] = await this.playScheduleRepository.find({
-      where: {
-        scheduleType: ScheduleEnum.EVENT,
-        active: true,
-      },
-    });
-    playSchedules = playSchedules.filter((playSchedule: PlaySchedule) => {
-      if (
-        startDate >= playSchedule.startDate &&
-        startDate <= playSchedule.endDate
-      ) {
-        return true;
-      }
-      if (
-        playSchedule.startDate >= startDate &&
-        playSchedule.startDate <= endDate
-      ) {
-        return true;
-      }
-      if (
-        endDate >= playSchedule.startDate &&
-        endDate <= playSchedule.endDate
-      ) {
-        return true;
-      }
-      if (
-        playSchedule.endDate >= startDate &&
-        playSchedule.endDate <= endDate
-      ) {
-        return true;
-      }
-      return false;
-    });
-    const start = this.getTimeSize_s(startTime);
-    const end = this.getTimeSize_s(endTime);
-    //시간 겹치는거 찾는거해야한다.
-    return playSchedules?.[0];
   }
 
   /** UTILL */
