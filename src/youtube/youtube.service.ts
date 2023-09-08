@@ -73,7 +73,6 @@ export class YoutubeService {
       },
     );
     if (!playInfo) return null;
-    // console.log(playInfo.requested_formats);
     const playUri = playInfo?.requested_formats?.find((d: any) =>
       d.resolution.includes('audio'),
     )?.url;

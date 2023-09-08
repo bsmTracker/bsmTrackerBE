@@ -7,12 +7,11 @@ import {
 } from '@nestjs/common';
 import {
   OnGatewayConnection,
-  SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Server } from 'http';
 import { PlayScheduleService } from './play-schedule.service';
+import { Socket, Server } from 'socket.io';
 
 @Injectable()
 @WebSocketGateway({
@@ -20,7 +19,7 @@ import { PlayScheduleService } from './play-schedule.service';
   cors: 'true',
 })
 @UsePipes(ValidationPipe)
-export class PlayScheduleGateway {
+export class PlayScheduleGateway implements OnGatewayConnection {
   constructor() {}
 
   @Inject(forwardRef(() => PlayScheduleService))
@@ -29,8 +28,7 @@ export class PlayScheduleGateway {
   @WebSocketServer()
   server: Server;
 
-  @SubscribeMessage('now-play-schedule')
-  async getNowPlaySchedule() {
-    this.playScheduleService.sendNowPlaySchedule();
+  handleConnection(client: Socket) {
+    this.playScheduleService.sendNowPlaySchedule(client);
   }
 }

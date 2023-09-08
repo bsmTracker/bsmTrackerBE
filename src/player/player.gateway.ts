@@ -4,17 +4,20 @@ import {
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import {
   ArgumentsHost,
   BadRequestException,
   Catch,
+  Inject,
   Injectable,
   UseFilters,
   UsePipes,
   ValidationPipe,
   WsExceptionFilter,
+  forwardRef,
 } from '@nestjs/common';
+import { PlayerService } from './player.service';
 
 @Catch(BadRequestException)
 export class BadRequestFilter implements WsExceptionFilter {
@@ -43,11 +46,14 @@ export class WebSocketFilter implements WsExceptionFilter {
 @UseFilters(BadRequestFilter, WebSocketFilter)
 export class PlayerGateway implements OnGatewayConnection {
   constructor() {}
+  @Inject(forwardRef(() => PlayerService))
+  private playerService: PlayerService;
 
   @WebSocketServer()
   server: Server;
 
-  async handleConnection() {
-    console.log('asdf');
+  async handleConnection(client: Socket) {
+    this.playerService.sendVolume(client);
+    this.playerService.sendNowPlayingAudio(client);
   }
 }

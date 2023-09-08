@@ -1,25 +1,30 @@
 import { Inject, Injectable, OnModuleInit, forwardRef } from '@nestjs/common';
 import { SpeakerGateway } from './speaker.gateway';
+import { Server, Socket } from 'socket.io';
 
 @Injectable()
 export class SpeakerService implements OnModuleInit {
   @Inject(forwardRef(() => SpeakerGateway))
   private speakerGateway: SpeakerGateway;
-  static volume: number = 0;
+  static relayStatus: boolean = false;
+
   static inited = false;
-
   onModuleInit() {
+    if (SpeakerService.inited) return;
+    this.setRelayStatus(false);
     SpeakerService.inited = true;
-    this.setVolume(0);
   }
 
-  setVolume(volume: number) {
-    if (volume < 0 || volume > 100) return;
-    SpeakerService.volume = volume;
-    this.speakerGateway.server.emit('volume', volume);
+  setRelayStatus(relayStatus: boolean) {
+    SpeakerService.relayStatus = relayStatus;
+    this.sendRelayStatus();
   }
 
-  listenVolume() {
-    return SpeakerService.volume;
+  getRelayStatus() {
+    return SpeakerService.relayStatus;
+  }
+
+  sendRelayStatus(socket: Socket | Server = this.speakerGateway.server) {
+    socket.emit('relay', this.getRelayStatus());
   }
 }

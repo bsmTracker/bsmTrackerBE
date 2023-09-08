@@ -32,6 +32,7 @@ import { ScheduleService } from 'src/schedule/schedule.service';
     ScheduleService,
   ],
   exports: [
+    PlaylistService,
     TrackService,
     YoutubeService,
     TypeOrmModule,

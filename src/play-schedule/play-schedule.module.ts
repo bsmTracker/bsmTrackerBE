@@ -15,6 +15,8 @@ import { SpeakerService } from 'src/speaker/speaker.service';
 import { SpeakerModule } from 'src/speaker/speaker.module';
 import { TrackModule } from 'src/track/track.module';
 import { PlayScheduleGateway } from './play-schedule.gateway';
+import { TrackService } from 'src/track/track.service';
+import { PlaylistService } from 'src/playlist/playlist.service';
 
 @Module({
   imports: [
@@ -28,14 +30,16 @@ import { PlayScheduleGateway } from './play-schedule.gateway';
   ],
   controllers: [PlayScheduleController],
   providers: [
-    PlayScheduleService,
     PlayScheduleGateway,
-    ScheduleService,
+    PlaylistService,
     AudioService,
+    ScheduleService,
+    TrackService,
     TtsService,
     PlayerService,
     SpeakerService,
+    PlayScheduleService,
   ],
-  exports: [TypeOrmModule, ScheduleService],
+  exports: [TypeOrmModule, ScheduleService, PlayScheduleService],
 })
 export class PlayScheduleModule {}

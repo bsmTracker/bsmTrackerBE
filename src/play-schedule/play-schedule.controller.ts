@@ -19,6 +19,7 @@ import { LevelType } from 'src/user/level-type';
 import { Level } from 'src/auth/decorator/level.decorator';
 import { PlayScheduleDetailDto } from './dto/playScheduleDetail.dto';
 import { PlaySchedule } from './entity/playSchedule.entity';
+import { BroadcastDetailDto } from './dto/broadcastDetail.dto';
 
 @Controller('play-schedule')
 export class PlayScheduleController {
@@ -85,5 +86,23 @@ export class PlayScheduleController {
     @Param('playScheduleId', ParseIntPipe) playScheduleId: number,
   ): Promise<void> {
     await this.playScheduleService.deletePlaySchedule(playScheduleId);
+  }
+
+  @Post('/broadcast')
+  @UseGuards(AuthGuard, LevelGuard)
+  @Level(LevelType.ADMIN)
+  @UsePipes(ValidationPipe)
+  async broadcast(@Body() broadcastDetailDto: BroadcastDetailDto) {
+    await this.playScheduleService.broadcastLive(
+      broadcastDetailDto.content,
+      broadcastDetailDto.volume,
+    );
+  }
+
+  @Post('/emergencyStop')
+  @UseGuards(AuthGuard, LevelGuard)
+  @Level(LevelType.ADMIN)
+  async emergencyStop() {
+    await this.playScheduleService.emergencyStop();
   }
 }

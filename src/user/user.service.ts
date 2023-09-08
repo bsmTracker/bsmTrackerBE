@@ -8,7 +8,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { FindOneOptions, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from 'src/user/entity/user.entity';
-import { randomBytes } from 'crypto';
 import { RegisterUserDto } from './dto/registerUser.dto';
 
 @Injectable()

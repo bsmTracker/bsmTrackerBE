@@ -1,6 +1,5 @@
 import {
   OnGatewayConnection,
-  SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
   WsException,
@@ -52,13 +51,7 @@ export class SpeakerGateway implements OnGatewayConnection {
   @WebSocketServer()
   server: Server;
 
-  async handleConnection(client: Socket) {
-    // client.emit('volume', this.speakerService.listenVolume());
-  }
-
-  //getVolume
-  @SubscribeMessage('volume')
-  listenVolume(client: Socket) {
-    client.emit('volume', this.speakerService.listenVolume());
+  handleConnection(client: Socket) {
+    this.speakerService.sendRelayStatus(client);
   }
 }
