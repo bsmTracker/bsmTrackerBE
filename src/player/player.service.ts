@@ -21,7 +21,7 @@ export class PlayerService implements OnModuleInit {
   onModuleInit() {
     if (PlayerService.inited) return;
     this.pause();
-    this.setVolume(100);
+    this.setVolume(0);
     PlayerService.inited = true;
   }
 

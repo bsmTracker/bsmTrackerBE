@@ -91,8 +91,10 @@ export class PlaySchedule extends BaseEntity {
   })
   endDate: string;
 
-  //재생 요일 - 일회성 재생용 날짜 보다 우선순위 낮음
-  @Column({ type: 'json', nullable: true })
+  @Column({
+    type: 'simple-json',
+    nullable: true,
+  })
   daysOfWeek: number[];
 
   //재생시작 시분초
@@ -106,15 +108,6 @@ export class PlaySchedule extends BaseEntity {
     type: 'json',
   })
   endTime: Time;
-
-  /** DB 쿼리용 */
-  @Column()
-  /** 초단위 */
-  startTimeSize: number;
-  /** 초단위 */
-  @Column()
-  endTimeSize: number;
-  /** DB 쿼리용 */
 
   @Column()
   volume: number;

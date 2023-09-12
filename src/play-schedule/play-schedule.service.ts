@@ -14,7 +14,7 @@ import {
   ScheduleEnum,
 } from '../play-schedule/entity/playSchedule.entity';
 import { PlayScheduleTimeDto } from './dto/playScheduleTime';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Time } from './type/Time.type';
 import { PlayerService } from 'src/player/player.service';
@@ -92,60 +92,64 @@ export class PlayScheduleService implements OnModuleInit {
   ) {
     socket.emit('now-play-schedule', this.getNowPlaySchedule());
   }
-
-  static broadcastTts: Tts = null;
   static broadcastTimeout = null;
-  static beforePlaySchedule = null;
-  static beforeVolume = null;
+  static beforePlayScheduleId: number = null;
+  static broadcastTtsId: number = null;
+  static beforeVolume: number = null;
 
   async broadcastLive(content: string, volume: number) {
-    if (PlayScheduleService.broadcastTts) {
-      await this.ttsService.removeTts(PlayScheduleService.broadcastTts.id);
-      PlayScheduleService.broadcastTts = null;
+    if (PlayScheduleService.broadcastTtsId) {
+      await this.ttsService.removeTts(PlayScheduleService.broadcastTtsId);
+      PlayScheduleService.broadcastTtsId = null;
     }
     if (PlayScheduleService.broadcastTimeout) {
       clearTimeout(PlayScheduleService.broadcastTimeout);
       PlayScheduleService.broadcastTimeout = null;
     }
     const tts: Tts = await this.ttsService.saveTts(content);
-    PlayScheduleService.broadcastTts = tts;
-
-    PlayScheduleService.beforePlaySchedule =
-      this.getNowPlaySchedule() || PlayScheduleService.beforePlaySchedule;
-    if (PlayScheduleService.beforePlaySchedule) {
+    PlayScheduleService.broadcastTtsId = tts.id;
+    PlayScheduleService.beforePlayScheduleId =
+      PlayScheduleService.beforePlayScheduleId || this.getNowPlaySchedule()?.id;
+    PlayScheduleService.beforeVolume =
+      PlayScheduleService.beforeVolume || this.playerService.getVolume();
+    if (PlayScheduleService.beforePlayScheduleId) {
       await this.stopPlaySchedule();
     }
-    PlayScheduleService.beforeVolume = this.playerService.getVolume();
-    PlayScheduleService.beforePlaySchedule =
-      PlayScheduleService.beforePlaySchedule;
     this.speakerService.setRelayStatus(true);
     this.playerService.setVolume(volume);
     this.playerService.play(tts.audio, 0);
     PlayScheduleService.broadcastTimeout = setTimeout(async () => {
-      this.speakerService.setRelayStatus(false);
-      if (PlayScheduleService.broadcastTts?.id) {
-        await this.ttsService.removeTts(PlayScheduleService.broadcastTts.id);
-        PlayScheduleService.broadcastTts = null;
+      if (PlayScheduleService.broadcastTtsId) {
+        await this.ttsService.removeTts(PlayScheduleService.broadcastTtsId);
       }
-      const v = this.playerService.getVolume();
-      if (PlayScheduleService.beforePlaySchedule) {
-        const playSchedule = await this.playScheduleRepository.findOne({
-          where: {
-            id: PlayScheduleService.beforePlaySchedule.id,
-          },
-        });
-        if (playSchedule) {
+      if (!PlayScheduleService.beforePlayScheduleId) {
+        this.speakerService.setRelayStatus(false);
+        this.playerService.setVolume(0);
+      } else {
+        let playSchedule: PlaySchedule =
+          await this.playScheduleRepository.findOne({
+            where: {
+              id: PlayScheduleService.beforePlayScheduleId,
+            },
+          });
+        if (!playSchedule) {
+          this.speakerService.setRelayStatus(false);
+          this.playerService.setVolume(0);
+        } else {
+          const nowPlayerVolume = this.playerService.getVolume();
+          if (nowPlayerVolume === volume) {
+            playSchedule['volume'] = PlayScheduleService.beforeVolume;
+          } else {
+            playSchedule['volume'] = nowPlayerVolume;
+          }
           if (await this.canBeCurrentPlaySchedule(playSchedule)) {
             await this.processPlaySchedule(playSchedule);
           }
         }
       }
-      if (v === volume) {
-        console.log('SDFGHJKL:');
-        this.playerService.setVolume(PlayScheduleService.beforeVolume);
-      }
+      PlayScheduleService.broadcastTtsId = null;
       PlayScheduleService.beforeVolume = null;
-      PlayScheduleService.beforePlaySchedule = null;
+      PlayScheduleService.beforePlayScheduleId = null;
       PlayScheduleService.broadcastTimeout = null;
     }, tts.duration_ms);
   }
@@ -191,7 +195,7 @@ export class PlayScheduleService implements OnModuleInit {
   }
 
   isExpiredSchedule(playSchedule: PlaySchedule) {
-    if (playSchedule.scheduleType === ScheduleEnum.DAYS_OF_WEEK) {
+    if (playSchedule.scheduleType !== ScheduleEnum.EVENT) {
       return false;
     }
     const nowTimeSize = TimeUtil.getTimeSize_s(TimeUtil.getNowTime());
@@ -262,8 +266,8 @@ export class PlayScheduleService implements OnModuleInit {
       },
       {
         ...playScheduleDto,
-        startTimeSize: TimeUtil.getTimeSize_s(playScheduleDto.startTime),
-        endTimeSize: TimeUtil.getTimeSize_s(playScheduleDto.endTime),
+        // startTimeSize: TimeUtil.getTimeSize_s(playScheduleDto.startTime),
+        // endTimeSize: TimeUtil.getTimeSize_s(playScheduleDto.endTime),
         active: false,
         id: playScheduleId,
       },
@@ -272,44 +276,48 @@ export class PlayScheduleService implements OnModuleInit {
 
   async canBeCurrentPlaySchedule(playSchedule: PlaySchedule): Promise<boolean> {
     const nowTimeSize = TimeUtil.getTimeSize_s(TimeUtil.getNowTime());
-    const todayStr = TimeUtil.getTodayStr();
     if (playSchedule.active === false) {
       return false;
     }
-    // ** 만약 daysOfWeek 형식의 재생일정이라면
-    // 재생함수 실행 전 오늘 이시간 재생일정이 없을시 실행해야함.
-    // date형 재생일정은 day형 재생일정보다 우선순위가 높기 때문에 양보해야함.
+    //현재 시간이 스케쥴이 등록된 동작 시간인지 체크
+    if (
+      (nowTimeSize >= TimeUtil.getTimeSize_s(playSchedule.startTime) &&
+        nowTimeSize <= TimeUtil.getTimeSize_s(playSchedule.endTime)) === false
+    ) {
+      return false;
+    }
+    //만약 스케쥴 타입이 DAYS_OF_WEEK 타입이라면
     if (playSchedule.scheduleType === ScheduleEnum.DAYS_OF_WEEK) {
-      const today = new Date();
-      if (!playSchedule.daysOfWeek.includes(today.getDay())) {
+      // 오늘 요일에 포함된 스케쥴인지 체크
+      const todayDayOfWeek = new Date().getDay();
+      if (!playSchedule.daysOfWeek.includes(todayDayOfWeek)) {
         return false;
       }
-      const todayStr: string = TimeUtil.getTodayStr();
-      const nowDateTimePlaySchedule = await this.findOverlappingEventSchedule({
-        startDate: todayStr,
-        endDate: todayStr,
+    }
+    //만약 스케쥴 타입이 EVENT 타입이라면
+    if (playSchedule.scheduleType === ScheduleEnum.EVENT) {
+      //스케쥴 시작 날과 끝날에 오늘 날짜가 포함되어있는지 체크
+      const todayDate = TimeUtil.getTodayStr();
+      if (
+        (todayDate >= playSchedule.startDate &&
+          todayDate <= playSchedule.endDate) === false
+      ) {
+        return false;
+      }
+    }
+
+    if (playSchedule.scheduleType !== ScheduleEnum.EVENT) {
+      const sameTimeEventSchedule = await this.findOverlappingEventSchedule({
         startTime: playSchedule.startTime,
         endTime: playSchedule.endTime,
+        startDate: playSchedule.startDate,
+        endDate: playSchedule.endDate,
       });
-      if (nowDateTimePlaySchedule) {
-        //오늘 우선순위가 높은 재생일정이 있기때문에 양보
+      if (sameTimeEventSchedule) {
         return false;
       }
     }
-    if (playSchedule.scheduleType === ScheduleEnum.EVENT) {
-      if (playSchedule.endDate > todayStr) {
-        return false;
-      }
-      if (playSchedule.startDate < todayStr) {
-        return false;
-      }
-    }
-    const startTimeSize = TimeUtil.getTimeSize_s(playSchedule.startTime);
-    const endTimeSize = TimeUtil.getTimeSize_s(playSchedule.endTime);
-    if (nowTimeSize >= startTimeSize && nowTimeSize <= endTimeSize) {
-      return true;
-    }
-    return false;
+    return true;
   }
 
   static trackTimeout = null;
@@ -406,8 +414,9 @@ export class PlayScheduleService implements OnModuleInit {
   }
 
   async stopPlaySchedule() {
-    this.speakerService.setRelayStatus(false);
     this.setNowPlaySchedule(null);
+    this.speakerService.setRelayStatus(false);
+    this.playerService.setVolume(0);
     this.playerService.pause();
     PlayScheduleService.playScheduleTimeoutList.map((ScheduleTimeOut) => {
       clearTimeout(ScheduleTimeOut);
@@ -418,9 +427,10 @@ export class PlayScheduleService implements OnModuleInit {
     PlayScheduleService.playScheduleTimeoutList = [];
   }
 
-  async isSameCurrentPlaySchedule(playSchedule: PlaySchedule) {
+  isSameCurrentPlaySchedule(playSchedule: PlaySchedule) {
     const currentPlaySchedule = this.getNowPlaySchedule();
     if (currentPlaySchedule?.id === playSchedule.id) {
+      console.log(currentPlaySchedule.id, playSchedule.id);
       return true;
     } else {
       return false;
@@ -444,8 +454,10 @@ export class PlayScheduleService implements OnModuleInit {
       throw new ConflictException(
         '해당 스케쥴은 만료된 스케쥴입니다. (활성화 할 수 없음)',
       );
+    if (playSchedule.active) {
+      throw new ConflictException('이미 해당 스케쥴은 활성화되어있습니다.');
+    }
     const exsistPlaySchedule = await this.findOverlappingSchedule(playSchedule);
-
     if (exsistPlaySchedule) {
       // 겹치는 스케쥴이 있어서 활성화 할 수 없습니다
       throw new ConflictException(
@@ -477,7 +489,7 @@ export class PlayScheduleService implements OnModuleInit {
           if (this.isExpiredSchedule(playSchedule)) {
             await this.deActivePlaySchedule(playSchedule.id);
           }
-          if (await this.isSameCurrentPlaySchedule(playSchedule)) {
+          if (this.isSameCurrentPlaySchedule(playSchedule)) {
             await this.stopPlaySchedule();
           }
         } catch (e) {}
@@ -551,7 +563,6 @@ export class PlayScheduleService implements OnModuleInit {
     playSchedule: PlayScheduleTimeDto,
   ): Promise<PlaySchedule> {
     let exsistPlaySchedule: PlaySchedule = null;
-
     if (playSchedule.scheduleType === ScheduleEnum.DAYS_OF_WEEK) {
       exsistPlaySchedule = await this.findOverlappingDaysOfWeekSchedule({
         startTime: playSchedule.startTime,
@@ -594,32 +605,18 @@ export class PlayScheduleService implements OnModuleInit {
       }
       return false;
     });
-    const startTimeSize = TimeUtil.getTimeSize_s(startTime);
-    const endTimeSize = TimeUtil.getTimeSize_s(endTime);
-    findedSchedules = findedSchedules.filter((findedSchedule) => {
-      if (
-        this.findOverlappingTime(
-          findedSchedule.startTimeSize,
-          startTimeSize,
-          findedSchedule.endTimeSize,
-          endTimeSize,
-        )
-      ) {
-        return true;
-      }
-      if (
-        this.findOverlappingTime(
-          startTimeSize,
-          findedSchedule.startTimeSize,
-          endTimeSize,
-          findedSchedule.endTimeSize,
-        )
-      ) {
-        return true;
-      }
-      return false;
-      //시간 겹치는거 찾는거해야한다.
-    });
+    findedSchedules = findedSchedules.filter((findedSchedule) =>
+      this.isOverlappingTime(
+        {
+          startTime,
+          endTime,
+        },
+        {
+          startTime: findedSchedule.startTime,
+          endTime: findedSchedule.endTime,
+        },
+      ),
+    );
     return findedSchedules?.[0];
   }
 
@@ -635,99 +632,58 @@ export class PlayScheduleService implements OnModuleInit {
     endDate: string;
   }): Promise<PlaySchedule | null> {
     let playSchedules: PlaySchedule[] = await this.playScheduleRepository.find({
-      where: {
-        scheduleType: ScheduleEnum.EVENT,
-        active: true,
-      },
+      where: [
+        {
+          scheduleType: ScheduleEnum.EVENT,
+          active: true,
+          startDate: Between(startDate, endDate),
+        },
+        {
+          scheduleType: ScheduleEnum.EVENT,
+          active: true,
+          endDate: Between(startDate, endDate),
+        },
+      ],
     });
-    const startTimeSize = TimeUtil.getTimeSize_s(startTime);
-    const endTimeSize = TimeUtil.getTimeSize_s(endTime);
-    playSchedules = playSchedules.filter((findedSchedule: PlaySchedule) => {
-      const isOverlappingTime = this.findOverlappingTime(
-        startTimeSize,
-        findedSchedule.startTimeSize,
-        endTimeSize,
-        findedSchedule.endTimeSize,
-      );
-      if (isOverlappingTime === false) {
-        return true;
-      }
-      if (
-        startDate >= findedSchedule.startDate &&
-        startDate <= findedSchedule.endDate
-      ) {
-        return true;
-      }
-      if (
-        findedSchedule.startDate >= startDate &&
-        findedSchedule.startDate <= endDate
-      ) {
-        return true;
-      }
-      if (
-        endDate >= findedSchedule.startDate &&
-        endDate <= findedSchedule.endDate
-      ) {
-        return true;
-      }
-      if (
-        findedSchedule.endDate >= startDate &&
-        findedSchedule.endDate <= endDate
-      ) {
-        return true;
-      }
-      return false;
-    });
+    playSchedules = playSchedules.filter((findedSchedule: PlaySchedule) =>
+      this.isOverlappingTime(
+        {
+          startTime,
+          endTime,
+        },
+        {
+          startTime: findedSchedule.startTime,
+          endTime: findedSchedule.endTime,
+        },
+      ),
+    );
     //시간 겹치는거 찾는거해야한다.
     return playSchedules?.[0];
   }
 
-  findOverlappingTime(
-    aStartTimeSize,
-    bStartTimeSize,
-    aEndTimeSize,
-    bEndTimeSize,
+  isOverlappingTime(
+    aTime: {
+      startTime: Time;
+      endTime: Time;
+    },
+    bTime: {
+      startTime: Time;
+      endTime: Time;
+    },
   ) {
-    if (aStartTimeSize > aEndTimeSize) {
-      if (bStartTimeSize > bEndTimeSize) {
-        //안돼임마
-        return true;
-      }
-      if (bStartTimeSize < bEndTimeSize) {
-        if (bEndTimeSize >= aStartTimeSize) {
-          //안돼임마
-          return true;
-        }
-
-        if (bStartTimeSize <= aEndTimeSize) {
-          //안돼임마
-          return true;
-        }
-      }
-    }
-    if (aStartTimeSize < aEndTimeSize) {
-      if (bStartTimeSize < bEndTimeSize) {
-        if (bStartTimeSize > aStartTimeSize && bStartTimeSize < aEndTimeSize) {
-          return true;
-        }
-        if (bEndTimeSize > aStartTimeSize && bEndTimeSize < aEndTimeSize) {
-          return true;
-          //안돼 임마
-        }
-      }
-      if (bStartTimeSize > bEndTimeSize) {
-        if (bStartTimeSize < aEndTimeSize) {
-          return true;
-          //안돼 임마
-        }
-        if (bEndTimeSize > aStartTimeSize) {
-          return true;
-          //안돼 임마
-        }
-      }
-    }
-    return false;
+    const isOverlapping =
+      TimeUtil.isOverlappingTime(
+        aTime.startTime,
+        bTime.startTime,
+        aTime.endTime,
+        bTime.endTime,
+      ) ||
+      TimeUtil.isOverlappingTime(
+        bTime.startTime,
+        aTime.startTime,
+        bTime.endTime,
+        aTime.endTime,
+      );
+    return isOverlapping;
   }
-
-  /** UTILL */
 }

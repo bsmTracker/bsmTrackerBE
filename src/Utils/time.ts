@@ -1,6 +1,62 @@
 import { Time } from 'src/play-schedule/type/Time.type';
 
 export class TimeUtil {
+  static isOverlappingTime(
+    aStartTime: Time,
+    bStartTime: Time,
+    aEndTime: Time,
+    bEndTime: Time,
+  ) {
+    const aStartTimeSize = TimeUtil.getTimeSize_s(aStartTime);
+    const bStartTimeSize = TimeUtil.getTimeSize_s(bStartTime);
+
+    const aEndTimeSize = TimeUtil.getTimeSize_s(aEndTime);
+    const bEndTimeSize = TimeUtil.getTimeSize_s(bEndTime);
+
+    if (aStartTimeSize >= aEndTimeSize) {
+      if (bStartTimeSize >= bEndTimeSize) {
+        //안돼임마
+        return true;
+      }
+      if (bStartTimeSize <= bEndTimeSize) {
+        if (bEndTimeSize >= aStartTimeSize) {
+          //안돼임마
+          return true;
+        }
+
+        if (bStartTimeSize <= aEndTimeSize) {
+          //안돼임마
+          return true;
+        }
+      }
+    }
+    if (aStartTimeSize <= aEndTimeSize) {
+      if (bStartTimeSize <= bEndTimeSize) {
+        if (
+          bStartTimeSize >= aStartTimeSize &&
+          bStartTimeSize <= aEndTimeSize
+        ) {
+          return true;
+        }
+        if (bEndTimeSize >= aStartTimeSize && bEndTimeSize <= aEndTimeSize) {
+          return true;
+          //안돼 임마
+        }
+      }
+      if (bStartTimeSize >= bEndTimeSize) {
+        if (bStartTimeSize <= aEndTimeSize) {
+          return true;
+          //안돼 임마
+        }
+        if (bEndTimeSize >= aStartTimeSize) {
+          return true;
+          //안돼 임마
+        }
+      }
+    }
+    return false;
+  }
+
   static getSchedulerTimeString(time: Time): string {
     return `${time.second} ${time.minute} ${time.hour} * * *`;
   }
