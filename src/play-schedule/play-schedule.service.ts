@@ -362,7 +362,7 @@ export class PlayScheduleService implements OnModuleInit {
         startTime: playSchedule.startTime,
         endTime: playSchedule.endTime,
         startDate: playSchedule.startDate,
-        endDate: playSchedule.endDate,
+        endDateTime: playSchedule.endDate,
       });
       if (sameTimeEventSchedule) {
         return false;
@@ -514,37 +514,73 @@ export class PlayScheduleService implements OnModuleInit {
         `"${exsistPlaySchedule?.name}"스케쥴과 겹쳐 활성화 할 수 없습니다!`,
       );
     }
-    let scheduleStartTimeStr = TimeUtil.getSchedulerTimeString(
-      playSchedule.startTime,
-    );
-    this.scheduleService.addCronJob(
-      `start-schedule-${playSchedule.id}`,
-      scheduleStartTimeStr,
-      async () => {
-        try {
-          if (await this.canBeCurrentPlaySchedule(playSchedule)) {
-            await this.processPlaySchedule(playSchedule);
-          }
-        } catch (e) {}
-      },
-    );
-    let scheduleEndTimeStr = TimeUtil.getSchedulerTimeString(
-      playSchedule.endTime,
-    );
-    this.scheduleService.addCronJob(
-      `stop-schedule-${playSchedule.id}`,
-      scheduleEndTimeStr,
-      async () => {
-        try {
-          if (this.isExpiredSchedule(playSchedule)) {
-            await this.deActivePlaySchedule(playSchedule.id);
-          }
-          if (this.isSameCurrentPlaySchedule(playSchedule)) {
-            await this.stopPlaySchedule();
-          }
-        } catch (e) {}
-      },
-    );
+    const startScheduleFunc = async () => {
+      try {
+        if (await this.canBeCurrentPlaySchedule(playSchedule)) {
+          await this.processPlaySchedule(playSchedule);
+        }
+      } catch (e) {}
+    };
+    const stopScheduleFunc = async () => {
+      try {
+        if (this.isExpiredSchedule(playSchedule)) {
+          await this.deActivePlaySchedule(playSchedule.id);
+        }
+        if (this.isSameCurrentPlaySchedule(playSchedule)) {
+          await this.stopPlaySchedule();
+        }
+      } catch (e) {}
+    };
+
+    const startScheduleId = `start-schedule-${playSchedule.id}`;
+    const stopScheduleId = `stop-schedule-${playSchedule.id}`;
+    if (playSchedule.scheduleType === ScheduleEnum.DAYS_OF_WEEK) {
+      let daysOfWeekStr = '';
+      playSchedule.daysOfWeek.forEach((daysOfWeek) => {
+        daysOfWeekStr += `${daysOfWeek.day},`;
+      });
+      daysOfWeekStr = daysOfWeekStr.substring(0, daysOfWeekStr.length - 1);
+      console.log(daysOfWeekStr);
+      let scheduleStartTimeStr = `${playSchedule.startTime.second} ${playSchedule.startTime.minute} ${playSchedule.startTime.hour} * * ${daysOfWeekStr}`;
+      let scheduleEndTimeStr = `${playSchedule.endTime.second} ${playSchedule.endTime.minute} ${playSchedule.endTime.hour} * * ${daysOfWeekStr}`;
+      this.scheduleService.addCronJob(
+        startScheduleId,
+        scheduleStartTimeStr,
+        startScheduleFunc,
+      );
+      this.scheduleService.addCronJob(
+        stopScheduleId,
+        scheduleEndTimeStr,
+        stopScheduleFunc,
+      );
+    }
+    if (playSchedule.scheduleType === ScheduleEnum.EVENT) {
+      let tempDateTime = new Date(playSchedule.startDate);
+      tempDateTime.setHours(0);
+      tempDateTime.setMinutes(0);
+      tempDateTime.setSeconds(0);
+      while (TimeUtil.getDateStr(tempDateTime) <= playSchedule.endDate) {
+        const startTime = tempDateTime;
+        startTime.setHours(playSchedule.startTime.hour);
+        startTime.setMinutes(playSchedule.startTime.minute);
+        startTime.setSeconds(playSchedule.startTime.second);
+        this.scheduleService.addDateTimeJob(
+          startTime,
+          startScheduleId,
+          startScheduleFunc,
+        );
+        const endTime = tempDateTime;
+        endTime.setHours(playSchedule.endTime.hour);
+        endTime.setMinutes(playSchedule.endTime.minute);
+        endTime.setSeconds(playSchedule.endTime.second);
+        this.scheduleService.addDateTimeJob(
+          endTime,
+          stopScheduleId,
+          stopScheduleFunc,
+        );
+        tempDateTime.setDate(tempDateTime.getDate() + 1);
+      }
+    }
     await this.playScheduleRepository.update(
       {
         id: playSchedule.id,
@@ -631,7 +667,7 @@ export class PlayScheduleService implements OnModuleInit {
         startTime: playSchedule.startTime,
         endTime: playSchedule.endTime,
         startDate: playSchedule.startDate,
-        endDate: playSchedule.endDate,
+        endDateTime: playSchedule.endDate,
       });
     }
     return exsistPlaySchedule;
@@ -675,24 +711,24 @@ export class PlayScheduleService implements OnModuleInit {
     startTime,
     endTime,
     startDate,
-    endDate,
+    endDateTime,
   }: {
     startTime: TimeType;
     endTime: TimeType;
     startDate: string;
-    endDate: string;
+    endDateTime: string;
   }): Promise<PlaySchedule | null> {
     let playSchedules: PlaySchedule[] = await this.playScheduleRepository.find({
       where: [
         {
           scheduleType: ScheduleEnum.EVENT,
           active: true,
-          startDate: Between(startDate, endDate),
+          startDate: Between(startDate, endDateTime),
         },
         {
           scheduleType: ScheduleEnum.EVENT,
           active: true,
-          endDate: Between(startDate, endDate),
+          endDate: Between(startDate, endDateTime),
         },
       ],
     });

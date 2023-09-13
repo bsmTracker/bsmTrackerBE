@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
+import { DaysOfWeek } from 'src/play-schedule/entity/daysOfWeek.entity';
+import { TimeType } from 'src/play-schedule/type/Time.type';
 
 @Injectable()
 export class ScheduleService {
@@ -30,7 +32,7 @@ export class ScheduleService {
     return null;
   }
 
-  async addDateTimeSchedule(datetime: Date, name: string, func: any) {
+  async addDateTimeJob(datetime: Date, name: string, func: any) {
     if (this.schedulerRegistry.doesExist('cron', name)) {
       return '이미 추가됨';
     }
@@ -38,5 +40,18 @@ export class ScheduleService {
     console.log(`${name}이 ${datetime}에 실행됩니다`);
     this.schedulerRegistry.addCronJob(name, job);
     job.start();
+  }
+
+  static getSchedulerTimeString(
+    time: TimeType,
+    daysOfWeek: DaysOfWeek[],
+  ): string {
+    let daysOfWeekStr = '';
+    daysOfWeek.forEach((daysOfWeek) => {
+      daysOfWeekStr += `${daysOfWeek.day},`;
+    });
+    daysOfWeekStr.slice(0, -1);
+    const str = `${time.second} ${time.minute} ${time.hour} * * ${daysOfWeekStr}`;
+    return str;
   }
 }

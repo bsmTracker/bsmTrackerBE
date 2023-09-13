@@ -138,7 +138,7 @@ export class TrackService implements OnModuleInit {
     let updateTime = playlistTrack.playUriExpire;
     // update 시간은 항상 만료 시간 3분 전 으로
     updateTime.setMinutes(updateTime.getMinutes() - 3);
-    await this.scheduleService.addDateTimeSchedule(
+    await this.scheduleService.addDateTimeJob(
       updateTime,
       `update-expired-track-audio-${playlistTrack.id}`,
       async () => {

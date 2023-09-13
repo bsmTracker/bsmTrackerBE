@@ -1,12 +1,15 @@
 import { TimeType } from 'src/play-schedule/type/Time.type';
 
 export class TimeUtil {
-  static getSchedulerTimeString(time: TimeType): string {
-    return `${time.second} ${time.minute} ${time.hour} * * *`;
-  }
-
   static getTodayStr(): string {
     const date = new Date();
+    let offset = date.getTimezoneOffset() * 60000; //ms단위라 60000곱해줌
+    let dateOffset = new Date(date.getTime() - offset).toISOString();
+    return dateOffset.substring(0, 10);
+  }
+
+  static getDateStr(datetime: Date): string {
+    const date = new Date(datetime);
     let offset = date.getTimezoneOffset() * 60000; //ms단위라 60000곱해줌
     let dateOffset = new Date(date.getTime() - offset).toISOString();
     return dateOffset.substring(0, 10);
