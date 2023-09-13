@@ -14,7 +14,7 @@ import {
   ScheduleEnum,
 } from '../play-schedule/entity/playSchedule.entity';
 import { PlayScheduleTimeDto } from './dto/playScheduleTime';
-import { Between, In, Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PlayerService } from 'src/player/player.service';
 import { AudioService } from 'src/audio/audio.service';
@@ -25,9 +25,10 @@ import { PlayScheduleGateway } from './play-schedule.gateway';
 import { Server, Socket } from 'socket.io';
 import { Tts } from 'src/tts/entity/tts.entity';
 import { TimeUtil } from 'src/Utils/time';
-import { DaysOfWeek } from './entity/daysOfWeek.entity';
+import { DayOfWeek } from './entity/dayOfWeek.entity';
 import { Time } from './entity/time.entity';
 import { TimeType } from './type/Time.type';
+import { DateEntity } from './entity/date.entity';
 
 // 은근 고친게 많다, 무턱대고 서두르는것은 좋지 않다 하하하핳 ,,,,,,;;;;
 // 발견하고 고쳐서 행복 하다 하하하핳 ,,,,,,,,,,
@@ -45,8 +46,10 @@ export class PlayScheduleService implements OnModuleInit {
     private playScheduleRepository: Repository<PlaySchedule>,
     @InjectRepository(Track)
     private trackRepository: Repository<Track>,
-    @InjectRepository(DaysOfWeek)
-    private daysOfWeekRepository: Repository<DaysOfWeek>,
+    @InjectRepository(DayOfWeek)
+    private daysOfWeekRepository: Repository<DayOfWeek>,
+    @InjectRepository(DateEntity)
+    private dateRepository: Repository<DateEntity>,
     @InjectRepository(Time)
     private timeRepository: Repository<Time>,
   ) {
@@ -67,17 +70,13 @@ export class PlayScheduleService implements OnModuleInit {
   async loadPlaySchedule() {
     if (PlayScheduleService.inited) return;
     await this.stopPlaySchedule();
-    const playSchedules = await this.playScheduleRepository.find({
+    const activatedPlaySchedules = await this.playScheduleRepository.find({
       where: {
         active: true,
       },
     });
-    playSchedules.forEach(async (playSchedule: PlaySchedule) => {
+    activatedPlaySchedules.forEach(async (playSchedule: PlaySchedule) => {
       try {
-        if (this.isExpiredSchedule(playSchedule)) {
-          await this.deActivePlaySchedule(playSchedule.id);
-          return;
-        }
         await this.activePlaySchedule(playSchedule.id);
       } catch (e) {}
     });
@@ -186,20 +185,38 @@ export class PlayScheduleService implements OnModuleInit {
           },
         ],
       });
+
       if (duplicatedP) {
         throw new ConflictException(
           'TTSId 또는 startMelodyId는 이미 등록되어 있는 스케쥴이 있습니다.',
         );
       }
     }
-    const daysOfWeek =
-      (await Promise.all(
-        playScheduleTimeDto.daysOfWeek.map(async (dayOfWeek: DaysOfWeek) => {
-          const day = new DaysOfWeek();
+
+    let daysOfWeek = [];
+    let dateList = [];
+
+    if (playScheduleTimeDto.scheduleType === ScheduleEnum.DAYS_OF_WEEK) {
+      daysOfWeek = await Promise.all(
+        playScheduleTimeDto.daysOfWeek.map(async (dayOfWeek: DayOfWeek) => {
+          const day = new DayOfWeek();
           day.day = dayOfWeek.day;
           return await this.daysOfWeekRepository.save(day);
         }),
-      )) ?? [];
+      );
+    }
+    delete playScheduleTimeDto.daysOfWeek;
+
+    if (playScheduleTimeDto.scheduleType === ScheduleEnum.EVENT) {
+      dateList = await Promise.all(
+        playScheduleTimeDto.dateList?.map(async (date_) => {
+          const date = new DateEntity();
+          date.date = date_.date;
+          return await date.save();
+        }),
+      );
+    }
+    delete playScheduleTimeDto.dateList;
 
     const startTime = await this.timeRepository.save(
       playScheduleTimeDto.startTime,
@@ -211,28 +228,11 @@ export class PlayScheduleService implements OnModuleInit {
     return await this.playScheduleRepository.save({
       ...playScheduleTimeDto,
       daysOfWeek,
+      dateList,
       startTime,
       endTime,
       //DB에서 시간 계산하기 위해서
     });
-  }
-
-  isExpiredSchedule(playSchedule: PlaySchedule) {
-    if (playSchedule.scheduleType !== ScheduleEnum.EVENT) {
-      return false;
-    }
-    const nowTimeSize = TimeUtil.getTimeSize_s(TimeUtil.getNowTime());
-    const playScheduleEndTimeSize = TimeUtil.getTimeSize_s(
-      playSchedule.endTime,
-    );
-    const todayStr = TimeUtil.getTodayStr();
-    if (
-      playSchedule.endDate <= todayStr &&
-      nowTimeSize >= playScheduleEndTimeSize
-    ) {
-      return true;
-    }
-    return false;
   }
 
   async deletePlaySchedule(playScheduleId: number): Promise<void> {
@@ -285,18 +285,26 @@ export class PlayScheduleService implements OnModuleInit {
         await this.ttsService.removeTts(playSchedule.tts.id);
       }
     }
-    await Promise.all(
-      playSchedule.daysOfWeek.map(async (daysOfWeek) => {
-        await this.daysOfWeekRepository.remove(daysOfWeek);
-      }),
-    );
-    playScheduleDto.daysOfWeek.forEach(async (dayOfWeek: DaysOfWeek) => {
-      const day = new DaysOfWeek();
+    await this.daysOfWeekRepository.delete({
+      playScheduleId: playSchedule.id,
+    });
+    playScheduleDto.daysOfWeek.forEach(async (dayOfWeek: DayOfWeek) => {
+      const day = new DayOfWeek();
       day.day = dayOfWeek.day;
       day.playScheduleId = playSchedule.id;
       return await this.daysOfWeekRepository.save(day);
     });
     delete playScheduleDto.daysOfWeek;
+    await this.dateRepository.delete({
+      playScheduleId: playSchedule.id,
+    });
+    playScheduleDto.dateList.forEach(async (dateE: DateEntity) => {
+      const date = new DateEntity();
+      date.date = dateE.date;
+      date.playScheduleId = playSchedule.id;
+      await this.dateRepository.save(date);
+    });
+    delete playScheduleDto.dateList;
 
     await this.timeRepository.update(
       {
@@ -349,10 +357,7 @@ export class PlayScheduleService implements OnModuleInit {
     if (playSchedule.scheduleType === ScheduleEnum.EVENT) {
       //스케쥴 시작 날과 끝날에 오늘 날짜가 포함되어있는지 체크
       const todayDate = TimeUtil.getTodayStr();
-      if (
-        (todayDate >= playSchedule.startDate &&
-          todayDate <= playSchedule.endDate) === false
-      ) {
+      if (!playSchedule.dateList.find((dateE) => dateE.date === todayDate)) {
         return false;
       }
     }
@@ -361,8 +366,7 @@ export class PlayScheduleService implements OnModuleInit {
       const sameTimeEventSchedule = await this.findOverlappingEventSchedule({
         startTime: playSchedule.startTime,
         endTime: playSchedule.endTime,
-        startDate: playSchedule.startDate,
-        endDateTime: playSchedule.endDate,
+        dateList: playSchedule.dateList,
       });
       if (sameTimeEventSchedule) {
         return false;
@@ -500,10 +504,6 @@ export class PlayScheduleService implements OnModuleInit {
       },
     });
     if (!playSchedule) throw new NotFoundException();
-    if (this.isExpiredSchedule(playSchedule))
-      throw new ConflictException(
-        '해당 스케쥴은 만료된 스케쥴입니다. (활성화 할 수 없음)',
-      );
     if (playSchedule.active) {
       throw new ConflictException('이미 해당 스케쥴은 활성화되어있습니다.');
     }
@@ -523,9 +523,6 @@ export class PlayScheduleService implements OnModuleInit {
     };
     const stopScheduleFunc = async () => {
       try {
-        if (this.isExpiredSchedule(playSchedule)) {
-          await this.deActivePlaySchedule(playSchedule.id);
-        }
         if (this.isSameCurrentPlaySchedule(playSchedule)) {
           await this.stopPlaySchedule();
         }
@@ -555,31 +552,25 @@ export class PlayScheduleService implements OnModuleInit {
       );
     }
     if (playSchedule.scheduleType === ScheduleEnum.EVENT) {
-      let tempDateTime = new Date(playSchedule.startDate);
-      tempDateTime.setHours(0);
-      tempDateTime.setMinutes(0);
-      tempDateTime.setSeconds(0);
-      while (TimeUtil.getDateStr(tempDateTime) <= playSchedule.endDate) {
-        const startTime = tempDateTime;
-        startTime.setHours(playSchedule.startTime.hour);
-        startTime.setMinutes(playSchedule.startTime.minute);
-        startTime.setSeconds(playSchedule.startTime.second);
+      playSchedule.dateList.forEach(async (dateE: DateEntity) => {
+        const dateTime = new Date(dateE.date);
+        dateTime.setHours(playSchedule.startTime.hour);
+        dateTime.setMinutes(playSchedule.startTime.minute);
+        dateTime.setSeconds(playSchedule.startTime.second);
         this.scheduleService.addDateTimeJob(
-          startTime,
+          dateTime,
           startScheduleId,
           startScheduleFunc,
         );
-        const endTime = tempDateTime;
-        endTime.setHours(playSchedule.endTime.hour);
-        endTime.setMinutes(playSchedule.endTime.minute);
-        endTime.setSeconds(playSchedule.endTime.second);
+        dateTime.setHours(playSchedule.endTime.hour);
+        dateTime.setMinutes(playSchedule.endTime.minute);
+        dateTime.setSeconds(playSchedule.endTime.second);
         this.scheduleService.addDateTimeJob(
-          endTime,
+          dateTime,
           stopScheduleId,
           stopScheduleFunc,
         );
-        tempDateTime.setDate(tempDateTime.getDate() + 1);
-      }
+      });
     }
     await this.playScheduleRepository.update(
       {
@@ -632,13 +623,6 @@ export class PlayScheduleService implements OnModuleInit {
         '스케쥴 시작시간과 종료시간은 같게 설정 할 수 없어요',
       );
     }
-    if (playScheduleTimeDto.scheduleType === ScheduleEnum.EVENT) {
-      if (playScheduleTimeDto.startDate > playScheduleTimeDto.endDate) {
-        throw new BadRequestException(
-          '재생 시작 일자가 재생 마지막 일보다 뒤로 갈 수 없습니다',
-        );
-      }
-    }
   }
 
   async getPlaySchedules() {
@@ -647,12 +631,15 @@ export class PlayScheduleService implements OnModuleInit {
         daysOfWeek: {
           day: 'ASC',
         },
+        dateList: {
+          date: 'ASC',
+        },
       },
     });
   }
 
   async findOverlappingSchedule(
-    playSchedule: PlayScheduleTimeDto,
+    playSchedule: PlayScheduleTimeDto | PlaySchedule,
   ): Promise<PlaySchedule> {
     let exsistPlaySchedule: PlaySchedule = null;
     if (playSchedule.scheduleType === ScheduleEnum.DAYS_OF_WEEK) {
@@ -666,8 +653,7 @@ export class PlayScheduleService implements OnModuleInit {
       exsistPlaySchedule = await this.findOverlappingEventSchedule({
         startTime: playSchedule.startTime,
         endTime: playSchedule.endTime,
-        startDate: playSchedule.startDate,
-        endDateTime: playSchedule.endDate,
+        dateList: playSchedule.dateList,
       });
     }
     return exsistPlaySchedule;
@@ -680,7 +666,7 @@ export class PlayScheduleService implements OnModuleInit {
   }: {
     startTime: TimeType;
     endTime: TimeType;
-    daysOfWeek: DaysOfWeek[];
+    daysOfWeek: DayOfWeek[];
   }): Promise<PlaySchedule | null> {
     let findedSchedules: PlaySchedule[] =
       await this.playScheduleRepository.find({
@@ -710,27 +696,20 @@ export class PlayScheduleService implements OnModuleInit {
   private async findOverlappingEventSchedule({
     startTime,
     endTime,
-    startDate,
-    endDateTime,
+    dateList,
   }: {
     startTime: TimeType;
     endTime: TimeType;
-    startDate: string;
-    endDateTime: string;
+    dateList: DateEntity[];
   }): Promise<PlaySchedule | null> {
     let playSchedules: PlaySchedule[] = await this.playScheduleRepository.find({
-      where: [
-        {
-          scheduleType: ScheduleEnum.EVENT,
-          active: true,
-          startDate: Between(startDate, endDateTime),
+      where: {
+        scheduleType: ScheduleEnum.EVENT,
+        active: true,
+        dateList: {
+          date: In(dateList?.map((dateE) => dateE.date)),
         },
-        {
-          scheduleType: ScheduleEnum.EVENT,
-          active: true,
-          endDate: Between(startDate, endDateTime),
-        },
-      ],
+      },
     });
     playSchedules = playSchedules.filter((findedSchedule: PlaySchedule) =>
       this.isOverlappingTime(

@@ -17,13 +17,14 @@ import { TrackModule } from 'src/track/track.module';
 import { PlayScheduleGateway } from './play-schedule.gateway';
 import { TrackService } from 'src/track/track.service';
 import { PlaylistService } from 'src/playlist/playlist.service';
-import { DaysOfWeek } from './entity/daysOfWeek.entity';
+import { DayOfWeek } from './entity/dayOfWeek.entity';
 import { Time } from './entity/time.entity';
+import { DateEntity } from './entity/date.entity';
 
 @Module({
   imports: [
     ScheduleModule,
-    TypeOrmModule.forFeature([PlaySchedule, DaysOfWeek, Time]),
+    TypeOrmModule.forFeature([PlaySchedule, DayOfWeek, DateEntity, Time]),
     TrackModule,
     AudioModule,
     TtsModule,

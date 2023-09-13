@@ -4,14 +4,12 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
-  PrimaryColumn,
   PrimaryGeneratedColumn,
-  Unique,
 } from 'typeorm';
 import { PlaySchedule } from './playSchedule.entity';
 
 @Entity()
-export class DaysOfWeek extends BaseEntity {
+export class DateEntity extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -20,18 +18,14 @@ export class DaysOfWeek extends BaseEntity {
   })
   playScheduleId: number;
 
-  @ManyToOne(
-    (type) => PlaySchedule,
-    (playSchedule) => playSchedule.daysOfWeek,
-    {
-      onDelete: 'CASCADE',
-    },
-  )
+  @ManyToOne((type) => PlaySchedule, (playSchedule) => playSchedule.dateList, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({
     name: 'playScheduleId',
   })
   playSchedule: PlaySchedule;
 
   @Column()
-  day: number;
+  date: string;
 }

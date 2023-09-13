@@ -3,24 +3,26 @@ import {
   ValidationOptions,
   registerDecorator,
 } from 'class-validator';
-import { DayOfWeek } from 'src/play-schedule/entity/dayOfWeek.entity';
-
-export function ValidateDaysOfWeek(validationOptions: ValidationOptions = {}) {
+import { DateEntity } from 'src/play-schedule/entity/date.entity';
+export function ValidateDateStrList(validationOptions: ValidationOptions = {}) {
+  const dateRegex = /^\d{4}\d{2}\d{2}$/;
   return function (object: Record<string, any>, propertyName: string): void {
     registerDecorator({
-      name: 'validateDaysOfWeek',
+      name: 'validateDayteStrList',
       target: object.constructor,
       propertyName: propertyName,
       options: validationOptions,
       validator: {
         validate(value: any, args: ValidationArguments): boolean {
           const { object }: { object: any } = args;
-          return value?.every(
-            (dayOfWeek: DayOfWeek) => dayOfWeek.day >= 0 && dayOfWeek.day <= 6,
-          );
+          const status = value?.every((d: DateEntity) => {
+            console.log(dateRegex.test(d.date)); //false
+            return !dateRegex.test(d.date);
+          });
+          return status;
         },
         defaultMessage(args: ValidationArguments): string {
-          console.log('aa');
+          console.log('aab');
           return (
             validationOptions?.message?.toString() ?? '올바르게 보내주세요'
           );

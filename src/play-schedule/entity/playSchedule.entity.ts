@@ -13,8 +13,9 @@ import {
 import Playlist from '../../playlist/entity/playlist.entity';
 import { Audio } from 'src/audio/entity/audio.entity';
 import { Tts } from 'src/tts/entity/tts.entity';
-import { DaysOfWeek } from './daysOfWeek.entity';
+import { DayOfWeek } from './dayOfWeek.entity';
 import { Time } from './time.entity';
+import { DateEntity } from './date.entity';
 
 export enum ScheduleEnum {
   'EVENT' = 1,
@@ -83,21 +84,26 @@ export class PlaySchedule extends BaseEntity {
   tts: Tts;
 
   // 일회성 재생용 날짜 /해커톤 진행 날짜등 - 요일 보다 우선순위 높음
-  @Column({
-    nullable: true,
-  })
-  startDate: string;
+  // @Column({
+  //   nullable: true,
+  // })
+  // startDate: string;
 
-  @Column({
-    nullable: true,
-  })
-  endDate: string;
-
-  @OneToMany(() => DaysOfWeek, (d) => d.playSchedule, {
+  // @Column({
+  //   nullable: true,
+  // })
+  // endDate: string;
+  @OneToMany(() => DateEntity, (d) => d.playSchedule, {
     eager: true,
     cascade: true,
   })
-  daysOfWeek: DaysOfWeek[];
+  dateList: DateEntity[];
+
+  @OneToMany(() => DayOfWeek, (d) => d.playSchedule, {
+    eager: true,
+    cascade: true,
+  })
+  daysOfWeek: DayOfWeek[];
 
   //재생시작 시분초
   @OneToOne((type) => Time, {
