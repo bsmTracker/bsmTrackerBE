@@ -20,7 +20,13 @@ export class DaysOfWeek extends BaseEntity {
   })
   playScheduleId: number;
 
-  @ManyToOne((type) => PlaySchedule, (playSchedule) => playSchedule.daysOfWeek)
+  @ManyToOne(
+    (type) => PlaySchedule,
+    (playSchedule) => playSchedule.daysOfWeek,
+    {
+      onDelete: 'CASCADE',
+    },
+  )
   @JoinColumn({
     name: 'playScheduleId',
   })

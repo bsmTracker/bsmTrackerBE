@@ -1,63 +1,7 @@
-import { Time } from 'src/play-schedule/type/Time.type';
+import { TimeType } from 'src/play-schedule/type/Time.type';
 
 export class TimeUtil {
-  static isOverlappingTime(
-    aStartTime: Time,
-    bStartTime: Time,
-    aEndTime: Time,
-    bEndTime: Time,
-  ) {
-    const aStartTimeSize = TimeUtil.getTimeSize_s(aStartTime);
-    const bStartTimeSize = TimeUtil.getTimeSize_s(bStartTime);
-
-    const aEndTimeSize = TimeUtil.getTimeSize_s(aEndTime);
-    const bEndTimeSize = TimeUtil.getTimeSize_s(bEndTime);
-
-    if (aStartTimeSize >= aEndTimeSize) {
-      if (bStartTimeSize >= bEndTimeSize) {
-        //안돼임마
-        return true;
-      }
-      if (bStartTimeSize <= bEndTimeSize) {
-        if (bEndTimeSize >= aStartTimeSize) {
-          //안돼임마
-          return true;
-        }
-
-        if (bStartTimeSize <= aEndTimeSize) {
-          //안돼임마
-          return true;
-        }
-      }
-    }
-    if (aStartTimeSize <= aEndTimeSize) {
-      if (bStartTimeSize <= bEndTimeSize) {
-        if (
-          bStartTimeSize >= aStartTimeSize &&
-          bStartTimeSize <= aEndTimeSize
-        ) {
-          return true;
-        }
-        if (bEndTimeSize >= aStartTimeSize && bEndTimeSize <= aEndTimeSize) {
-          return true;
-          //안돼 임마
-        }
-      }
-      if (bStartTimeSize >= bEndTimeSize) {
-        if (bStartTimeSize <= aEndTimeSize) {
-          return true;
-          //안돼 임마
-        }
-        if (bEndTimeSize >= aStartTimeSize) {
-          return true;
-          //안돼 임마
-        }
-      }
-    }
-    return false;
-  }
-
-  static getSchedulerTimeString(time: Time): string {
+  static getSchedulerTimeString(time: TimeType): string {
     return `${time.second} ${time.minute} ${time.hour} * * *`;
   }
 
@@ -68,7 +12,7 @@ export class TimeUtil {
     return dateOffset.substring(0, 10);
   }
 
-  static getTimeSize_s(time: Time): number {
+  static getTimeSize_s(time: TimeType): number {
     return time.hour * 3600 + time.minute * 60 + time.second;
   }
 
@@ -79,7 +23,7 @@ export class TimeUtil {
     return { hour, minute, second };
   }
 
-  static getNowTime(): Time {
+  static getNowTime(): TimeType {
     const now = new Date();
     return {
       hour: now.getHours(),
@@ -88,7 +32,11 @@ export class TimeUtil {
     };
   }
 
-  static calcTime(time: Time, calcSign: '+' | '-', calcTime: Time): Time {
+  static calcTime(
+    time: TimeType,
+    calcSign: '+' | '-',
+    calcTime: TimeType,
+  ): TimeType {
     let { hour, minute, second } = time;
     hour += 24; // 시간 + 24시간
     second = second + minute * 60 + hour * 60 * 60; // 시간을 전부 초으로 변환

@@ -8,7 +8,7 @@ import {
   IsNotEmpty,
   ValidateIf,
 } from 'class-validator';
-import { Time } from '../type/Time.type';
+import { TimeType } from '../type/Time.type';
 import { ScheduleEnum } from '../entity/playSchedule.entity';
 import { IsTime } from './validator/isTime';
 import { ValidateDaysOfWeek } from './validator/isValidDaysOfWeekArray';
@@ -21,11 +21,11 @@ export class PlayScheduleTimeDto {
 
   @IsNotEmpty()
   @IsTime()
-  startTime: Time;
+  startTime: TimeType;
 
   @IsNotEmpty()
   @IsTime()
-  endTime: Time;
+  endTime: TimeType;
 
   @ValidateIf((o) => o.scheduleType === ScheduleEnum.EVENT)
   @IsNotEmpty()

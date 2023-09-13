@@ -4,8 +4,6 @@ import {
   CreateDateColumn,
   Entity,
   JoinColumn,
-  JoinTable,
-  ManyToMany,
   ManyToOne,
   OneToMany,
   OneToOne,
@@ -14,9 +12,9 @@ import {
 } from 'typeorm';
 import Playlist from '../../playlist/entity/playlist.entity';
 import { Audio } from 'src/audio/entity/audio.entity';
-import { Time } from '../type/Time.type';
 import { Tts } from 'src/tts/entity/tts.entity';
 import { DaysOfWeek } from './daysOfWeek.entity';
+import { Time } from './time.entity';
 
 export enum ScheduleEnum {
   'EVENT' = 1,
@@ -97,19 +95,24 @@ export class PlaySchedule extends BaseEntity {
 
   @OneToMany(() => DaysOfWeek, (d) => d.playSchedule, {
     eager: true,
+    cascade: true,
   })
   daysOfWeek: DaysOfWeek[];
 
   //재생시작 시분초
-  @Column({
-    type: 'json',
+  @OneToOne((type) => Time, {
+    eager: true,
+    onDelete: 'SET NULL',
   })
+  @JoinColumn()
   startTime: Time;
 
   //재생끝 시분초
-  @Column({
-    type: 'json',
+  @OneToOne((type) => Time, {
+    eager: true,
+    onDelete: 'SET NULL',
   })
+  @JoinColumn()
   endTime: Time;
 
   @Column()

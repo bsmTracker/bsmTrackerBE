@@ -16,7 +16,6 @@ import {
 import { PlayScheduleTimeDto } from './dto/playScheduleTime';
 import { Between, In, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Time } from './type/Time.type';
 import { PlayerService } from 'src/player/player.service';
 import { AudioService } from 'src/audio/audio.service';
 import { SpeakerService } from 'src/speaker/speaker.service';
@@ -27,6 +26,8 @@ import { Server, Socket } from 'socket.io';
 import { Tts } from 'src/tts/entity/tts.entity';
 import { TimeUtil } from 'src/Utils/time';
 import { DaysOfWeek } from './entity/daysOfWeek.entity';
+import { Time } from './entity/time.entity';
+import { TimeType } from './type/Time.type';
 
 // 은근 고친게 많다, 무턱대고 서두르는것은 좋지 않다 하하하핳 ,,,,,,;;;;
 // 발견하고 고쳐서 행복 하다 하하하핳 ,,,,,,,,,,
@@ -46,6 +47,8 @@ export class PlayScheduleService implements OnModuleInit {
     private trackRepository: Repository<Track>,
     @InjectRepository(DaysOfWeek)
     private daysOfWeekRepository: Repository<DaysOfWeek>,
+    @InjectRepository(Time)
+    private timeRepository: Repository<Time>,
   ) {
     //스케쥴 싹다 불러와서 서버에 스케쥴 채우기
   }
@@ -189,7 +192,6 @@ export class PlayScheduleService implements OnModuleInit {
         );
       }
     }
-
     const daysOfWeek =
       (await Promise.all(
         playScheduleTimeDto.daysOfWeek.map(async (dayOfWeek: DaysOfWeek) => {
@@ -198,9 +200,19 @@ export class PlayScheduleService implements OnModuleInit {
           return await this.daysOfWeekRepository.save(day);
         }),
       )) ?? [];
+
+    const startTime = await this.timeRepository.save(
+      playScheduleTimeDto.startTime,
+    );
+    const endTime = await this.timeRepository.save(playScheduleTimeDto.endTime);
+    delete playScheduleTimeDto.startTime;
+    delete playScheduleTimeDto.endTime;
+
     return await this.playScheduleRepository.save({
       ...playScheduleTimeDto,
       daysOfWeek,
+      startTime,
+      endTime,
       //DB에서 시간 계산하기 위해서
     });
   }
@@ -241,6 +253,8 @@ export class PlayScheduleService implements OnModuleInit {
     if (playSchedule?.tts?.id) {
       await this.ttsService.removeTts(playSchedule.tts.id);
     }
+    await this.timeRepository.remove(playSchedule.startTime);
+    await this.timeRepository.remove(playSchedule.endTime);
     await this.playScheduleRepository.remove(playSchedule);
   }
 
@@ -283,6 +297,21 @@ export class PlayScheduleService implements OnModuleInit {
       return await this.daysOfWeekRepository.save(day);
     });
     delete playScheduleDto.daysOfWeek;
+
+    await this.timeRepository.update(
+      {
+        id: playSchedule.startTime.id,
+      },
+      playScheduleDto.startTime,
+    );
+    await this.timeRepository.update(
+      {
+        id: playSchedule.endTime.id,
+      },
+      playScheduleDto.endTime,
+    );
+    delete playScheduleDto.startTime;
+    delete playScheduleDto.endTime;
 
     await this.playScheduleRepository.update(
       {
@@ -613,8 +642,8 @@ export class PlayScheduleService implements OnModuleInit {
     endTime,
     daysOfWeek,
   }: {
-    startTime: Time;
-    endTime: Time;
+    startTime: TimeType;
+    endTime: TimeType;
     daysOfWeek: DaysOfWeek[];
   }): Promise<PlaySchedule | null> {
     let findedSchedules: PlaySchedule[] =
@@ -627,7 +656,6 @@ export class PlayScheduleService implements OnModuleInit {
           },
         },
       });
-
     findedSchedules = findedSchedules.filter((findedSchedule) =>
       this.isOverlappingTime(
         {
@@ -649,8 +677,8 @@ export class PlayScheduleService implements OnModuleInit {
     startDate,
     endDate,
   }: {
-    startTime: Time;
-    endTime: Time;
+    startTime: TimeType;
+    endTime: TimeType;
     startDate: string;
     endDate: string;
   }): Promise<PlaySchedule | null> {
@@ -686,27 +714,32 @@ export class PlayScheduleService implements OnModuleInit {
 
   isOverlappingTime(
     aTime: {
-      startTime: Time;
-      endTime: Time;
+      startTime: TimeType;
+      endTime: TimeType;
     },
     bTime: {
-      startTime: Time;
-      endTime: Time;
+      startTime: TimeType;
+      endTime: TimeType;
     },
   ) {
-    const isOverlapping =
-      TimeUtil.isOverlappingTime(
-        aTime.startTime,
-        bTime.startTime,
-        aTime.endTime,
-        bTime.endTime,
-      ) ||
-      TimeUtil.isOverlappingTime(
-        bTime.startTime,
-        aTime.startTime,
-        bTime.endTime,
-        aTime.endTime,
-      );
-    return isOverlapping;
+    const aStartTimeSize = TimeUtil.getTimeSize_s(aTime.startTime);
+    const aEndTimeSize = TimeUtil.getTimeSize_s(aTime.endTime);
+
+    const bStartTimeSize = TimeUtil.getTimeSize_s(bTime.startTime);
+    const bEndTimeSize = TimeUtil.getTimeSize_s(bTime.endTime);
+
+    if (aStartTimeSize >= bStartTimeSize && aStartTimeSize <= bEndTimeSize) {
+      return true;
+    }
+    if (aEndTimeSize >= bStartTimeSize && aEndTimeSize <= bEndTimeSize) {
+      return true;
+    }
+    if (bStartTimeSize >= aStartTimeSize && bStartTimeSize <= aEndTimeSize) {
+      return true;
+    }
+    if (bEndTimeSize >= aStartTimeSize && bEndTimeSize <= aEndTimeSize) {
+      return true;
+    }
+    return false;
   }
 }
