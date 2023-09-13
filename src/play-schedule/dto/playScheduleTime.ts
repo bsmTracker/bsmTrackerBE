@@ -12,6 +12,7 @@ import { Time } from '../type/Time.type';
 import { ScheduleEnum } from '../entity/playSchedule.entity';
 import { IsTime } from './validator/isTime';
 import { ValidateDaysOfWeek } from './validator/isValidDaysOfWeekArray';
+import { DaysOfWeek } from '../entity/daysOfWeek.entity';
 
 export class PlayScheduleTimeDto {
   @IsNotEmpty()
@@ -53,5 +54,5 @@ export class PlayScheduleTimeDto {
     message: '요일은 일~월으로 7까지가 최대입니다',
   })
   @ValidateDaysOfWeek()
-  daysOfWeek: number[];
+  daysOfWeek: DaysOfWeek[];
 }

@@ -4,7 +4,10 @@ import {
   CreateDateColumn,
   Entity,
   JoinColumn,
+  JoinTable,
+  ManyToMany,
   ManyToOne,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -13,6 +16,7 @@ import Playlist from '../../playlist/entity/playlist.entity';
 import { Audio } from 'src/audio/entity/audio.entity';
 import { Time } from '../type/Time.type';
 import { Tts } from 'src/tts/entity/tts.entity';
+import { DaysOfWeek } from './daysOfWeek.entity';
 
 export enum ScheduleEnum {
   'EVENT' = 1,
@@ -91,11 +95,10 @@ export class PlaySchedule extends BaseEntity {
   })
   endDate: string;
 
-  @Column({
-    type: 'simple-json',
-    nullable: true,
+  @OneToMany(() => DaysOfWeek, (d) => d.playSchedule, {
+    eager: true,
   })
-  daysOfWeek: number[];
+  daysOfWeek: DaysOfWeek[];
 
   //재생시작 시분초
   @Column({
