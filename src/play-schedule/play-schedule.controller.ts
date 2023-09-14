@@ -56,11 +56,9 @@ export class PlayScheduleController {
     @Param('id', ParseIntPipe) playScheduleId: number,
     @Body('active', ParseBoolPipe) activeStatus: boolean,
   ) {
-    if (activeStatus) {
-      await this.playScheduleService.activePlaySchedule(playScheduleId);
-    } else {
-      await this.playScheduleService.deActivePlaySchedule(playScheduleId);
-    }
+    await this.playScheduleService.togglePlayScheduleActiveStatus(
+      playScheduleId,
+    );
   }
 
   // o

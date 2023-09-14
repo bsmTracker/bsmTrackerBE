@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Inject,
   Injectable,
   NotFoundException,
@@ -59,15 +61,15 @@ export class PlayScheduleService implements OnModuleInit {
   @Inject(forwardRef(() => PlayScheduleGateway))
   private playScheduleGateway: PlayScheduleGateway;
 
-  static inited = false;
-  static playScheduleTimeoutList = [];
+  private static inited = false;
+  private static playScheduleTimeoutList = [];
   private static currentPlaySchedule: PlaySchedule = null;
 
   async onModuleInit() {
     await this.loadPlaySchedule();
   }
 
-  async loadPlaySchedule() {
+  private async loadPlaySchedule() {
     if (PlayScheduleService.inited) return;
     await this.stopPlaySchedule();
     const activatedPlaySchedules = await this.playScheduleRepository.find({
@@ -88,33 +90,30 @@ export class PlayScheduleService implements OnModuleInit {
     this.sendNowPlaySchedule();
   }
 
-  getNowPlaySchedule() {
+  getCurrentPlaySchedule() {
     return PlayScheduleService.currentPlaySchedule;
   }
 
   public sendNowPlaySchedule(
     socket: Socket | Server = this.playScheduleGateway.server,
   ) {
-    socket.emit('now-play-schedule', this.getNowPlaySchedule());
+    socket.emit('now-play-schedule', this.getCurrentPlaySchedule());
   }
-  static broadcastTimeout = null;
-  static beforePlayScheduleId: number = null;
-  static broadcastTtsId: number = null;
-  static beforeVolume: number = null;
+
+  private static broadcastTimeout = null;
+  private static beforePlayScheduleId: number = null;
+  private static broadcastTtsId: number = null;
+  private static beforeVolume: number = null;
+  private static targetVolume: number = null;
 
   async broadcastLive(content: string, volume: number) {
-    if (PlayScheduleService.broadcastTtsId) {
-      await this.ttsService.removeTts(PlayScheduleService.broadcastTtsId);
-      PlayScheduleService.broadcastTtsId = null;
-    }
-    if (PlayScheduleService.broadcastTimeout) {
-      clearTimeout(PlayScheduleService.broadcastTimeout);
-      PlayScheduleService.broadcastTimeout = null;
-    }
+    await this.stopBroadcastLive();
     const tts: Tts = await this.ttsService.saveTts(content);
     PlayScheduleService.broadcastTtsId = tts.id;
+    PlayScheduleService.targetVolume = volume;
     PlayScheduleService.beforePlayScheduleId =
-      PlayScheduleService.beforePlayScheduleId || this.getNowPlaySchedule()?.id;
+      PlayScheduleService.beforePlayScheduleId ||
+      this.getCurrentPlaySchedule()?.id;
     PlayScheduleService.beforeVolume =
       PlayScheduleService.beforeVolume || this.playerService.getVolume();
     if (PlayScheduleService.beforePlayScheduleId) {
@@ -124,53 +123,72 @@ export class PlayScheduleService implements OnModuleInit {
     this.playerService.setVolume(volume);
     this.playerService.play(tts.audio, 0);
     PlayScheduleService.broadcastTimeout = setTimeout(async () => {
-      if (PlayScheduleService.broadcastTtsId) {
-        await this.ttsService.removeTts(PlayScheduleService.broadcastTtsId);
-      }
-      if (!PlayScheduleService.beforePlayScheduleId) {
-        this.speakerService.setRelayStatus(false);
-        this.playerService.setVolume(0);
-      } else {
-        let playSchedule: PlaySchedule =
-          await this.playScheduleRepository.findOne({
-            where: {
-              id: PlayScheduleService.beforePlayScheduleId,
-            },
-          });
-        if (!playSchedule) {
-          this.speakerService.setRelayStatus(false);
-          this.playerService.setVolume(0);
-        } else {
-          const nowPlayerVolume = this.playerService.getVolume();
-          if (nowPlayerVolume === volume) {
-            playSchedule['volume'] = PlayScheduleService.beforeVolume;
-          } else {
-            playSchedule['volume'] = nowPlayerVolume;
-          }
-          if (await this.canBeCurrentPlaySchedule(playSchedule)) {
-            await this.processPlaySchedule(playSchedule);
-          }
-        }
-      }
-      PlayScheduleService.broadcastTtsId = null;
-      PlayScheduleService.beforeVolume = null;
-      PlayScheduleService.beforePlayScheduleId = null;
       PlayScheduleService.broadcastTimeout = null;
+      await this.stopBroadcastLive();
     }, tts.duration_ms);
   }
 
-  async findOverlappingPlayScheduleForActive(playScheduleId: number) {
+  async stopBroadcastLive() {
+    if (PlayScheduleService.broadcastTtsId) {
+      this.playerService.pause();
+      await this.ttsService.removeTts(PlayScheduleService.broadcastTtsId);
+    }
+    if (PlayScheduleService.broadcastTimeout) {
+      clearTimeout(PlayScheduleService.broadcastTimeout);
+    }
+    let replayplaySchedule: PlaySchedule | null =
+      PlayScheduleService?.beforePlayScheduleId &&
+      (await this.playScheduleRepository.findOne({
+        where: {
+          id: PlayScheduleService.beforePlayScheduleId,
+        },
+      }));
+    if (!replayplaySchedule) {
+      if (
+        PlayScheduleService.beforePlayScheduleId ===
+        PlayScheduleService?.currentPlaySchedule?.id
+      ) {
+        this.speakerService.setRelayStatus(false);
+        this.playerService.setVolume(0);
+        this.playerService.pause();
+      } else {
+        // 그대로 놔둠
+      }
+    } else {
+      const nowPlayerVolume = this.playerService.getVolume();
+      if (nowPlayerVolume === PlayScheduleService.targetVolume) {
+        replayplaySchedule['volume'] = PlayScheduleService.beforeVolume;
+      } else {
+        replayplaySchedule['volume'] = nowPlayerVolume;
+      }
+      if (await this.canBeCurrentPlaySchedule(replayplaySchedule)) {
+        await this.processPlaySchedule(replayplaySchedule);
+      }
+    }
+    PlayScheduleService.broadcastTimeout = null;
+    PlayScheduleService.broadcastTtsId = null;
+    PlayScheduleService.beforeVolume = null;
+    PlayScheduleService.targetVolume = null;
+    PlayScheduleService.beforePlayScheduleId = null;
+    PlayScheduleService.broadcastTimeout = null;
+  }
+
+  public async findOverlappingPlayScheduleForActive(playScheduleId: number) {
     const playSchedule = await this.playScheduleRepository.findOne({
       where: {
         id: playScheduleId,
       },
     });
-    if (!playSchedule) return null;
-    if (playSchedule.active) return null;
+    if (!playSchedule) throw new NotFoundException();
+    if (playSchedule.active)
+      throw new HttpException(
+        '스케쥴이 이미 활성화 되어있습니다!',
+        HttpStatus.CONFLICT,
+      );
     return await this.findOverlappingSchedule(playSchedule);
   }
 
-  async addPlaySchedule(
+  public async addPlaySchedule(
     playScheduleTimeDto: PlayScheduleDetailDto,
   ): Promise<PlaySchedule> {
     await this.checkPlayScheduleTimePolicy(playScheduleTimeDto);
@@ -235,7 +253,7 @@ export class PlayScheduleService implements OnModuleInit {
     });
   }
 
-  async deletePlaySchedule(playScheduleId: number): Promise<void> {
+  public async deletePlaySchedule(playScheduleId: number): Promise<void> {
     const playSchedule = await this.playScheduleRepository.findOne({
       where: {
         id: playScheduleId,
@@ -258,7 +276,7 @@ export class PlayScheduleService implements OnModuleInit {
     await this.playScheduleRepository.remove(playSchedule);
   }
 
-  async editPlaySchedule(
+  public async editPlaySchedule(
     playScheduleId: number,
     playScheduleDto: PlayScheduleDetailDto,
   ): Promise<void> {
@@ -333,7 +351,9 @@ export class PlayScheduleService implements OnModuleInit {
     );
   }
 
-  async canBeCurrentPlaySchedule(playSchedule: PlaySchedule): Promise<boolean> {
+  private async canBeCurrentPlaySchedule(
+    playSchedule: PlaySchedule,
+  ): Promise<boolean> {
     const nowTimeSize = TimeUtil.getTimeSize_s(TimeUtil.getNowTime());
     if (playSchedule.active === false) {
       return false;
@@ -376,7 +396,11 @@ export class PlayScheduleService implements OnModuleInit {
   }
 
   static trackTimeout = null;
-  async playlistTrackPlay(playlistId: number, order = 1, startTime_ms = 0) {
+  private async playlistTrackPlay(
+    playlistId: number,
+    order = 1,
+    startTime_ms = 0,
+  ) {
     if (!playlistId) return;
     this.playerService.pause();
     const track = await this.trackRepository.findOne({
@@ -395,7 +419,7 @@ export class PlayScheduleService implements OnModuleInit {
     }, timeout);
   }
 
-  async processPlaySchedule(playSchedule: PlaySchedule) {
+  private async processPlaySchedule(playSchedule: PlaySchedule) {
     let timeStamp_ms = 0;
     const nowTimeSize = TimeUtil.getNowTime();
     const playScheduleStartTime = playSchedule.startTime;
@@ -468,7 +492,7 @@ export class PlayScheduleService implements OnModuleInit {
     return;
   }
 
-  async stopPlaySchedule() {
+  private async stopPlaySchedule() {
     this.setNowPlaySchedule(null);
     this.speakerService.setRelayStatus(false);
     this.playerService.setVolume(0);
@@ -482,38 +506,41 @@ export class PlayScheduleService implements OnModuleInit {
     PlayScheduleService.playScheduleTimeoutList = [];
   }
 
-  isSameCurrentPlaySchedule(playSchedule: PlaySchedule) {
-    const currentPlaySchedule = this.getNowPlaySchedule();
-    if (currentPlaySchedule?.id === playSchedule.id) {
-      return true;
-    } else {
-      return false;
-    }
-  }
-
   // 긴급정지
-  async emergencyStop() {
+  public async emergencyStop() {
     // tts도 정지시키는거
+    await this.stopBroadcastLive();
     await this.stopPlaySchedule();
   }
 
-  async activePlaySchedule(playScheduleId: number) {
+  public async togglePlayScheduleActiveStatus(playScheduleId: number) {
+    const playSchedule = await this.playScheduleRepository.findOne({
+      where: {
+        id: playScheduleId,
+      },
+    });
+    if (playSchedule.active === true) {
+      await this.deActivePlaySchedule(playSchedule.id);
+    } else if (playSchedule.active === false) {
+      const overlappingPlaySchedule =
+        await this.findOverlappingSchedule(playSchedule);
+      if (overlappingPlaySchedule) {
+        // 겹치는 스케쥴이 있어서 활성화 할 수 없습니다
+        throw new ConflictException(
+          `"${overlappingPlaySchedule?.name}"스케쥴과 겹쳐 활성화 할 수 없습니다!`,
+        );
+      }
+      await this.activePlaySchedule(playSchedule.id);
+    }
+  }
+
+  private async activePlaySchedule(playScheduleId: number) {
     let playSchedule = await this.playScheduleRepository.findOne({
       where: {
         id: playScheduleId,
       },
     });
     if (!playSchedule) throw new NotFoundException();
-    if (playSchedule.active) {
-      throw new ConflictException('이미 해당 스케쥴은 활성화되어있습니다.');
-    }
-    const exsistPlaySchedule = await this.findOverlappingSchedule(playSchedule);
-    if (exsistPlaySchedule) {
-      // 겹치는 스케쥴이 있어서 활성화 할 수 없습니다
-      throw new ConflictException(
-        `"${exsistPlaySchedule?.name}"스케쥴과 겹쳐 활성화 할 수 없습니다!`,
-      );
-    }
     const startScheduleFunc = async () => {
       try {
         if (await this.canBeCurrentPlaySchedule(playSchedule)) {
@@ -523,7 +550,7 @@ export class PlayScheduleService implements OnModuleInit {
     };
     const stopScheduleFunc = async () => {
       try {
-        if (this.isSameCurrentPlaySchedule(playSchedule)) {
+        if (this.getCurrentPlaySchedule()?.id === playSchedule.id) {
           await this.stopPlaySchedule();
         }
       } catch (e) {}
@@ -537,7 +564,6 @@ export class PlayScheduleService implements OnModuleInit {
         daysOfWeekStr += `${daysOfWeek.day},`;
       });
       daysOfWeekStr = daysOfWeekStr.substring(0, daysOfWeekStr.length - 1);
-      console.log(daysOfWeekStr);
       let scheduleStartTimeStr = `${playSchedule.startTime.second} ${playSchedule.startTime.minute} ${playSchedule.startTime.hour} * * ${daysOfWeekStr}`;
       let scheduleEndTimeStr = `${playSchedule.endTime.second} ${playSchedule.endTime.minute} ${playSchedule.endTime.hour} * * ${daysOfWeekStr}`;
       this.scheduleService.addCronJob(
@@ -590,14 +616,14 @@ export class PlayScheduleService implements OnModuleInit {
     }
   }
 
-  async deActivePlaySchedule(playScheduleId: number) {
+  private async deActivePlaySchedule(playScheduleId: number) {
     const playSchedule = await this.playScheduleRepository.findOne({
       where: {
         id: playScheduleId,
       },
     });
     if (!playSchedule) throw new NotFoundException();
-    if (this.isSameCurrentPlaySchedule(playSchedule)) {
+    if (this.getCurrentPlaySchedule()?.id === playSchedule.id) {
       await this.stopPlaySchedule();
     }
     this.scheduleService.deleteCronJob(`start-schedule-${playSchedule.id}`);
@@ -612,7 +638,7 @@ export class PlayScheduleService implements OnModuleInit {
     );
   }
 
-  async checkPlayScheduleTimePolicy(
+  private async checkPlayScheduleTimePolicy(
     playScheduleTimeDto: PlayScheduleTimeDto,
   ): Promise<void> {
     if (
@@ -625,7 +651,7 @@ export class PlayScheduleService implements OnModuleInit {
     }
   }
 
-  async getPlaySchedules() {
+  public async getPlaySchedules() {
     return await this.playScheduleRepository.find({
       order: {
         daysOfWeek: {
@@ -638,9 +664,12 @@ export class PlayScheduleService implements OnModuleInit {
     });
   }
 
-  async findOverlappingSchedule(
-    playSchedule: PlayScheduleTimeDto | PlaySchedule,
+  private async findOverlappingSchedule(
+    playSchedule: PlaySchedule,
   ): Promise<PlaySchedule> {
+    // if(playSchedule.active === true) {
+    //   return null;
+    // }
     let exsistPlaySchedule: PlaySchedule = null;
     if (playSchedule.scheduleType === ScheduleEnum.DAYS_OF_WEEK) {
       exsistPlaySchedule = await this.findOverlappingDaysOfWeekSchedule({
@@ -727,7 +756,7 @@ export class PlayScheduleService implements OnModuleInit {
     return playSchedules?.[0];
   }
 
-  isOverlappingTime(
+  private isOverlappingTime(
     aTime: {
       startTime: TimeType;
       endTime: TimeType;

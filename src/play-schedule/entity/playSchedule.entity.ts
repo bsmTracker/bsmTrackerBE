@@ -83,16 +83,6 @@ export class PlaySchedule extends BaseEntity {
   })
   tts: Tts;
 
-  // 일회성 재생용 날짜 /해커톤 진행 날짜등 - 요일 보다 우선순위 높음
-  // @Column({
-  //   nullable: true,
-  // })
-  // startDate: string;
-
-  // @Column({
-  //   nullable: true,
-  // })
-  // endDate: string;
   @OneToMany(() => DateEntity, (d) => d.playSchedule, {
     eager: true,
     cascade: true,
