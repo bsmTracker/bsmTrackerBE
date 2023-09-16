@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  OnApplicationBootstrap,
   OnModuleInit,
 } from '@nestjs/common';
 import { YoutubeService } from 'src/youtube/youtube.service';
@@ -36,8 +37,7 @@ export class TrackService implements OnModuleInit {
   async onModuleInit() {
     if (TrackService.init) return;
     const tracks = await this.trackRepository.find();
-    // console.log(tracks);
-    Promise.all(
+    await Promise.all(
       tracks.map(async (playlistTrack: Track) => {
         // 일어나서 만료된 URL을 대상으로 처음에는 주석없이, 그리고 주석있이 테스트하여 만료기한이 어떻게 되었는지 체크
         try {
@@ -163,7 +163,7 @@ export class TrackService implements OnModuleInit {
     const youtubeTrack = await this.youtubeService.getDetailedYoutubeTrack(
       playlistTrack.code,
     );
-    console.log(youtubeTrack);
+    // console.log(youtubeTrack);
     if (!youtubeTrack) {
       await this.unSaveTrack(playlistTrack);
       throw new NotFoundException('유튜브에서 영상이 삭제된것으로 보여집니다.');
@@ -177,7 +177,7 @@ export class TrackService implements OnModuleInit {
     );
 
     ///여기부분 보기 ////
-    console.log(refreshedYoutubeTrackAudio);
+    // console.log(refreshedYoutubeTrackAudio);
     await this.trackRepository.update(
       {
         id: playlistTrack.id,

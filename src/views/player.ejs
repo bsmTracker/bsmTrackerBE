@@ -19,7 +19,12 @@
     <p>1. 라즈베리파이에 해당 페이지를 설치합니다</p>
     <p>2. 해당페이지 권한에서 소리 설정을 허용으로 변환해야합니다</p>
     <img src="/uploads/yes.png" />
-    <source src="sound.mp3" type="audio/mpeg" />
+    <audio autoplay controls>
+      <source
+        src="audio/The_Weeknd-I_Feel_It_Coming(cover_byJ.Fla).mp3"
+        type="audio/mp3"
+      />
+    </audio>
   </body>
   <script src="/socket.io/socket.io.js"></script>
   <script>
@@ -57,9 +62,7 @@
       if (currentAudio) {
         currentAudio.pause();
       }
-      console.log(data?.src);
       currentAudio = new Audio(data.src);
-      console.log('play----');
       affectVolume();
       console.log(data.startTime / 1000);
       currentAudio.currentTime = data.startTime / 1000;
@@ -69,28 +72,28 @@
       };
     });
 
-    socket.on('broadcastPause', function (data) {
-      if (currentBroadCast) {
-        currentBroadCast.pause();
-        currentBroadCast = null;
-      }
-      affectVolume();
-    });
+    // socket.on('broadcastPause', function (data) {
+    //   if (currentBroadCast) {
+    //     currentBroadCast.pause();
+    //     currentBroadCast = null;
+    //   }
+    //   affectVolume();
+    // });
 
-    socket.on('broadcastPlay', function (data) {
-      if (currentBroadCast) {
-        currentBroadCast.pause();
-      }
-      currentBroadCast = new Audio(data.src);
-      affectVolume();
-      //max
-      currentBroadCast.currentTime = 0;
-      currentBroadCast.play();
-      currentBroadCast.onended = () => {
-        currentBroadCast = null;
-        affectVolume();
-      };
-    });
+    // socket.on('broadcastPlay', function (data) {
+    //   if (currentBroadCast) {
+    //     currentBroadCast.pause();
+    //   }
+    //   currentBroadCast = new Audio(data.src);
+    //   affectVolume();
+    //   //max
+    //   currentBroadCast.currentTime = 0;
+    //   currentBroadCast.play();
+    //   currentBroadCast.onended = () => {
+    //     currentBroadCast = null;
+    //     affectVolume();
+    //   };
+    // });
 
     socket.on('volume', function (data) {
       if (data < 0 || data > 100) return;

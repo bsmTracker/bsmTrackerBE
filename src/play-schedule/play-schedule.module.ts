@@ -23,9 +23,9 @@ import { DateEntity } from './entity/date.entity';
 
 @Module({
   imports: [
-    ScheduleModule,
-    TypeOrmModule.forFeature([PlaySchedule, DayOfWeek, DateEntity, Time]),
     TrackModule,
+    TypeOrmModule.forFeature([PlaySchedule, DayOfWeek, DateEntity, Time]),
+    ScheduleModule,
     AudioModule,
     TtsModule,
     PlayerModule,
@@ -33,11 +33,11 @@ import { DateEntity } from './entity/date.entity';
   ],
   controllers: [PlayScheduleController],
   providers: [
+    TrackService,
     PlayScheduleGateway,
     PlaylistService,
     AudioService,
     ScheduleService,
-    TrackService,
     TtsService,
     PlayerService,
     SpeakerService,

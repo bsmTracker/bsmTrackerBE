@@ -62,43 +62,48 @@ export class YoutubeService {
   }
 
   async getDetailedYoutubeTrack(code: string): Promise<YoutubeTrack> {
-    const playInfo = await youtubedl(
-      'https://www.youtube.com/watch?v=' + code,
-      {
-        dumpSingleJson: true,
-        noCheckCertificates: true,
-        noWarnings: true,
-        preferFreeFormats: true,
-        addHeader: ['referer:youtube.com', 'user-agent:googlebot'],
-      },
-    );
-    if (!playInfo) return null;
-    const playUri = playInfo?.requested_formats?.find((d: any) =>
-      d.resolution.includes('audio'),
-    )?.url;
-    if (!playUri)
-      throw new HttpException(
-        '유튜브에서 음원을 추출 할 수 없습니다',
-        HttpStatus.NOT_FOUND,
+    try {
+      const playInfo = await youtubedl(
+        'https://www.youtube.com/watch?v=' + code,
+        {
+          dumpSingleJson: true,
+          noCheckCertificates: true,
+          noWarnings: true,
+          preferFreeFormats: true,
+          addHeader: ['referer:youtube.com', 'user-agent:googlebot'],
+        },
       );
-
-    const playUriObj = new URL(playUri);
-    const queryParams = new URLSearchParams(playUriObj.searchParams);
-    const expireValue = queryParams.get('expire');
-    const playUriExpire = new Date();
-    playUriExpire.setTime(Number(expireValue) * 1000);
-    console.log(playUriExpire.toLocaleString());
-    const data: YoutubeTrack = {
-      code,
-      name: playInfo.title,
-      duration_ms: playInfo.duration * 1000,
-      isLive: playInfo.is_live,
-      playUri: playInfo.requested_formats[1].url,
-      image: playInfo.thumbnail,
-      playUriExpire,
-    };
-    if (data.isLive === true) return null;
-    return data;
+      if (!playInfo) return null;
+      const playUri = playInfo?.requested_formats?.find((d: any) =>
+        d.resolution.includes('audio'),
+      )?.url;
+      if (!playUri) {
+        console.log('thistis');
+        throw new HttpException(
+          '유튜브에서 음원을 추출 할 수 없습니다',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+      const playUriObj = new URL(playUri);
+      const queryParams = new URLSearchParams(playUriObj.searchParams);
+      const expireValue = queryParams.get('expire');
+      const playUriExpire = new Date();
+      playUriExpire.setTime(Number(expireValue) * 1000);
+      console.log(playUriExpire.toLocaleString());
+      const data: YoutubeTrack = {
+        code,
+        name: playInfo.title,
+        duration_ms: playInfo.duration * 1000,
+        isLive: playInfo.is_live,
+        playUri: playInfo.requested_formats[1].url,
+        image: playInfo.thumbnail,
+        playUriExpire,
+      };
+      if (data.isLive === true) return null;
+      return data;
+    } catch (e) {
+      return null;
+    }
   }
 
   async getPlayUri(trackCode: string) {

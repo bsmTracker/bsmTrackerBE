@@ -83,6 +83,9 @@ export class PlayerService implements OnModuleInit {
     }
     this.pause();
     let src = '';
+    if (audio.AudioType === 'local') {
+      src += process.env.SERVER_ENDPOINT;
+    }
     src += audio?.path;
     console.log('startTime ^&: ', startTime);
     PlayerService.nowPlayingAudio = {

@@ -6,6 +6,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  OnApplicationBootstrap,
   OnModuleInit,
   forwardRef,
 } from '@nestjs/common';
@@ -36,7 +37,7 @@ import { DateEntity } from './entity/date.entity';
 // 발견하고 고쳐서 행복 하다 하하하핳 ,,,,,,,,,,
 
 @Injectable()
-export class PlayScheduleService implements OnModuleInit {
+export class PlayScheduleService implements OnApplicationBootstrap {
   constructor(
     private scheduleService: ScheduleService,
     private audioService: AudioService,
@@ -61,16 +62,14 @@ export class PlayScheduleService implements OnModuleInit {
   @Inject(forwardRef(() => PlayScheduleGateway))
   private playScheduleGateway: PlayScheduleGateway;
 
-  private static inited = false;
   private static playScheduleTimeoutList = [];
   private static currentPlaySchedule: PlaySchedule = null;
 
-  async onModuleInit() {
+  async onApplicationBootstrap() {
     await this.loadPlaySchedule();
   }
 
   private async loadPlaySchedule() {
-    if (PlayScheduleService.inited) return;
     await this.stopPlaySchedule();
     const activatedPlaySchedules = await this.playScheduleRepository.find({
       where: {
@@ -82,7 +81,6 @@ export class PlayScheduleService implements OnModuleInit {
         await this.activePlaySchedule(playSchedule.id);
       } catch (e) {}
     });
-    PlayScheduleService.inited = true;
   }
 
   private setNowPlaySchedule(playSchedule: PlaySchedule | null) {
@@ -106,7 +104,7 @@ export class PlayScheduleService implements OnModuleInit {
   private static beforeVolume: number = null;
   private static targetVolume: number = null;
 
-  async broadcastLive(content: string, volume: number) {
+  public async broadcastLive(content: string, volume: number) {
     await this.stopBroadcastLive();
     const tts: Tts = await this.ttsService.saveTts(content);
     PlayScheduleService.broadcastTtsId = tts.id;
@@ -128,7 +126,7 @@ export class PlayScheduleService implements OnModuleInit {
     }, tts.duration_ms);
   }
 
-  async stopBroadcastLive() {
+  public async stopBroadcastLive() {
     if (PlayScheduleService.broadcastTtsId) {
       this.playerService.pause();
       await this.ttsService.removeTts(PlayScheduleService.broadcastTtsId);
