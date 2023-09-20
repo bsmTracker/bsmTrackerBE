@@ -30,7 +30,7 @@ export class ScheduleService {
     return null;
   }
 
-  async addDateTimeJob(datetime: Date, name: string, func: any) {
+  addDateTimeJob(datetime: Date, name: string, func: any) {
     if (datetime < new Date()) {
       console.log('이미 끝난 시간입니다 ', datetime);
       return;

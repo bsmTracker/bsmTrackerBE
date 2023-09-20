@@ -56,7 +56,7 @@ export class TrackService implements OnModuleInit {
     q: string;
     playlistId?: number;
   }): Promise<(PreviewYoutubeTrack & { save: boolean })[]> {
-    return Promise.all(
+    return await Promise.all(
       (await this.youtubeService.searchTracks(q)).map(
         async (youtubeTrack: PreviewYoutubeTrack) => {
           const saved = await this.trackRepository.findOne({
@@ -163,7 +163,6 @@ export class TrackService implements OnModuleInit {
     const youtubeTrack = await this.youtubeService.getDetailedYoutubeTrack(
       playlistTrack.code,
     );
-    // console.log(youtubeTrack);
     if (!youtubeTrack) {
       await this.unSaveTrack(playlistTrack);
       throw new NotFoundException('유튜브에서 영상이 삭제된것으로 보여집니다.');

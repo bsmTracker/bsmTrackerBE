@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseBoolPipe,
   ParseIntPipe,
   Post,
   Put,
@@ -52,9 +51,10 @@ export class PlayScheduleController {
   }
 
   @Post('/:id/toggleActivation')
+  @UseGuards(AuthGuard, LevelGuard)
+  @Level(LevelType.ADMIN)
   async setScheduleActivation(
     @Param('id', ParseIntPipe) playScheduleId: number,
-    @Body('active', ParseBoolPipe) activeStatus: boolean,
   ) {
     await this.playScheduleService.togglePlayScheduleActiveStatus(
       playScheduleId,

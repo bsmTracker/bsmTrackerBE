@@ -35,6 +35,18 @@ export class TimeUtil {
     };
   }
 
+  static isBetweenTime(
+    startTimeSize: number,
+    endTimeSize: number,
+    nowTimeSize: number,
+  ) {
+    if (startTimeSize > endTimeSize) {
+      return startTimeSize <= nowTimeSize || nowTimeSize <= endTimeSize;
+    } else {
+      return startTimeSize <= nowTimeSize && nowTimeSize <= endTimeSize;
+    }
+  }
+
   static calcTime(
     time: TimeType,
     calcSign: '+' | '-',

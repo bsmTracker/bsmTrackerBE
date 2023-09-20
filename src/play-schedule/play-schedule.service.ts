@@ -7,7 +7,6 @@ import {
   Injectable,
   NotFoundException,
   OnApplicationBootstrap,
-  OnModuleInit,
   forwardRef,
 } from '@nestjs/common';
 import { ScheduleService } from 'src/schedule/schedule.service';
@@ -353,16 +352,16 @@ export class PlayScheduleService implements OnApplicationBootstrap {
     playSchedule: PlaySchedule,
   ): Promise<boolean> {
     const nowTimeSize = TimeUtil.getTimeSize_s(TimeUtil.getNowTime());
-    if (playSchedule.active === false) {
-      return false;
-    }
+    const startTimeSize = TimeUtil.getTimeSize_s(playSchedule.startTime);
+    const endTimeSize = TimeUtil.getTimeSize_s(playSchedule.endTime);
+    if (playSchedule.active === false) return false;
     //현재 시간이 스케쥴이 등록된 동작 시간인지 체크
     if (
-      (nowTimeSize >= TimeUtil.getTimeSize_s(playSchedule.startTime) &&
-        nowTimeSize <= TimeUtil.getTimeSize_s(playSchedule.endTime)) === false
+      TimeUtil.isBetweenTime(startTimeSize, endTimeSize, nowTimeSize) === false
     ) {
       return false;
     }
+
     //만약 스케쥴 타입이 DAYS_OF_WEEK 타입이라면
     if (playSchedule.scheduleType === ScheduleEnum.DAYS_OF_WEEK) {
       // 오늘 요일에 포함된 스케쥴인지 체크
@@ -541,7 +540,9 @@ export class PlayScheduleService implements OnApplicationBootstrap {
     if (!playSchedule) throw new NotFoundException();
     const startScheduleFunc = async () => {
       try {
-        if (await this.canBeCurrentPlaySchedule(playSchedule)) {
+        const canBeCurrnetPlaySchedule =
+          await this.canBeCurrentPlaySchedule(playSchedule);
+        if (canBeCurrnetPlaySchedule) {
           await this.processPlaySchedule(playSchedule);
         }
       } catch (e) {}
@@ -554,6 +555,9 @@ export class PlayScheduleService implements OnApplicationBootstrap {
       } catch (e) {}
     };
 
+    // const isPassingNoonSchedule =
+    //   TimeUtil.getTimeSize_s(playSchedule.startTime) >
+    //   TimeUtil.getTimeSize_s(playSchedule.endTime);
     const startScheduleId = `start-schedule-${playSchedule.id}`;
     const stopScheduleId = `stop-schedule-${playSchedule.id}`;
     if (playSchedule.scheduleType === ScheduleEnum.DAYS_OF_WEEK) {
@@ -639,12 +643,17 @@ export class PlayScheduleService implements OnApplicationBootstrap {
   private async checkPlayScheduleTimePolicy(
     playScheduleTimeDto: PlayScheduleTimeDto,
   ): Promise<void> {
-    if (
-      JSON.stringify(playScheduleTimeDto.startTime) ===
-      JSON.stringify(playScheduleTimeDto.endTime)
-    ) {
+    const startTimeSize = TimeUtil.getTimeSize_s(playScheduleTimeDto.startTime);
+    const endTimeSize = TimeUtil.getTimeSize_s(playScheduleTimeDto.endTime);
+
+    if (startTimeSize === endTimeSize) {
       throw new BadRequestException(
         '스케쥴 시작시간과 종료시간은 같게 설정 할 수 없어요',
+      );
+    }
+    if (startTimeSize > endTimeSize) {
+      throw new BadRequestException(
+        '스케쥴 시작시간과 종료시간 정오를 넘길 수 없습니다',
       );
     }
   }

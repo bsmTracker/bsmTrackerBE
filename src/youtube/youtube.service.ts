@@ -73,16 +73,13 @@ export class YoutubeService {
           addHeader: ['referer:youtube.com', 'user-agent:googlebot'],
         },
       );
+      console.log('something');
       if (!playInfo) return null;
       const playUri = playInfo?.requested_formats?.find((d: any) =>
         d.resolution.includes('audio'),
       )?.url;
       if (!playUri) {
-        console.log('thistis');
-        throw new HttpException(
-          '유튜브에서 음원을 추출 할 수 없습니다',
-          HttpStatus.NOT_FOUND,
-        );
+        return null;
       }
       const playUriObj = new URL(playUri);
       const queryParams = new URLSearchParams(playUriObj.searchParams);
