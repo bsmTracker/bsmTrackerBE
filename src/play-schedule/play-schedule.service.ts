@@ -295,10 +295,16 @@ export class PlayScheduleService implements OnApplicationBootstrap {
         await this.audioService.removeAudio(playSchedule.startMelody.id);
       }
     }
+    if (playScheduleDto.startMelodyId === null) {
+      delete playScheduleDto.startMelodyId;
+    }
     if (playSchedule?.ttsId !== playScheduleDto?.ttsId) {
       if (playSchedule?.tts) {
         await this.ttsService.removeTts(playSchedule.tts.id);
       }
+    }
+    if (playScheduleDto.ttsId === null) {
+      delete playScheduleDto.ttsId;
     }
     await this.daysOfWeekRepository.delete({
       playScheduleId: playSchedule.id,
@@ -335,6 +341,8 @@ export class PlayScheduleService implements OnApplicationBootstrap {
     );
     delete playScheduleDto.startTime;
     delete playScheduleDto.endTime;
+
+    console.log(playScheduleDto);
 
     await this.playScheduleRepository.update(
       {
