@@ -9,6 +9,7 @@ import { AudioService } from 'src/audio/audio.service';
 import { promisify } from 'util';
 import { Tts } from './entity/tts.entity';
 import { Repository } from 'typeorm';
+import { Audio } from 'src/audio/entity/audio.entity';
 const request = promisify(require('request'));
 
 @Injectable()
@@ -16,6 +17,7 @@ export class TtsService {
   constructor(
     private audioService: AudioService,
     @InjectRepository(Tts) private ttsRepository: Repository<Tts>,
+    @InjectRepository(Audio) private audioRepository: Repository<Audio>,
   ) {}
 
   async saveTts(content: string) {

@@ -15,8 +15,6 @@ import { Tts } from '../tts.entity';
 export class TtsSubscriber implements EntitySubscriberInterface<Tts> {
   constructor(
     private connection: Connection,
-    @InjectRepository(Tts)
-    private readonly ttsRepository: Repository<Tts>,
     @InjectRepository(Audio)
     private readonly audioRepository: Repository<Audio>,
   ) {
