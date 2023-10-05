@@ -63,6 +63,7 @@ export class TrackController {
   @UseGuards(AuthGuard)
   @Level(LevelType.ADMIN)
   async getMySavedTrackIdList(@Body() trackSaveDto: TrackSaveDto) {
+    console.log(trackSaveDto);
     return await this.trackService.unSaveTrack(trackSaveDto);
   }
 }

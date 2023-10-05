@@ -48,6 +48,7 @@ export class AuthController {
   @Post('/bsmLogin')
   @PassNotLoggedIn()
   async bsmLogin(@Body('code') code: string, @Res() res: Response) {
+    console.log(code);
     return await this.authService.bsmLogin(res, code);
   }
 }
