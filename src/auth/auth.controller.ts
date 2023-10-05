@@ -16,24 +16,28 @@ import { AuthGuard } from './guards/auth.guard';
 import { RegisterUserDto } from '../user/dto/registerUser.dto';
 import { GetUser } from './decorator/userinfo.decorator';
 import { User } from 'src/user/entity/user.entity';
+import { PassNotLoggedIn } from './decorator/pass_not_logged_in.decorator';
 
 @Controller('/oauth')
+@UseGuards(AuthGuard)
 export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Get('/getUser')
-  @UseGuards(AuthGuard)
+  @PassNotLoggedIn()
   isAuthenticated(@Req() req: Request, @GetUser() user: User) {
     return user;
   }
 
   @Post('/signup')
+  @PassNotLoggedIn()
   @UsePipes(ValidationPipe)
   async registerAccount(@Body() userDto: RegisterUserDto): Promise<any> {
     return await this.authService.registerUser(userDto);
   }
 
   @Post('/login')
+  @PassNotLoggedIn()
   async login(
     @Body() userDto: UserLoginDto,
     @Res() res: Response,
@@ -41,12 +45,9 @@ export class AuthController {
     return await this.authService.login(res, userDto);
   }
 
-  // @Post('/logout')
-  // @UseGuards(AuthGuard)
-  // logout(@Req() req: Request, @Res() res: Response): any {
-  //   // res.setHeader('Authorization', 'Bearer ');
-  //   res.clearCookie('accessToken');
-  //   res.clearCookie('refreshToken');
-  //   return res.json();
-  // }
+  @Post('/bsmLogin')
+  @PassNotLoggedIn()
+  async bsmLogin(@Body('code') code: string, @Res() res: Response) {
+    return await this.authService.bsmLogin(res, code);
+  }
 }

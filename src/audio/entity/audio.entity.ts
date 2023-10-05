@@ -1,5 +1,3 @@
-import Track from 'src/track/entity/Track.entity';
-import { Tts } from 'src/tts/entity/tts.entity';
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()

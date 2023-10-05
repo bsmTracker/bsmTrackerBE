@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import * as youtubesearchapi from 'youtube-search-api';
 import { YoutubeTrack, PreviewYoutubeTrack } from './type/youtube.type';
 const youtubedl = require('youtube-dl-exec');
@@ -19,9 +19,10 @@ export class YoutubeService {
         },
       ],
     );
+    //filter 작업은 라이브 동영상은 제외하는 과정이다. (라이브 동영상에는 length가 안들어온다)
     return Promise.all(
       trackList.items
-        .filter((item: any) => item.isLive !== true)
+        .filter((item: any) => item.length)
         .map((youtubeTrack: any) => {
           return this.parseTracksForSearch(youtubeTrack);
         })
@@ -42,7 +43,7 @@ export class YoutubeService {
     const durationArr = durationStr.split(':');
     let p = 0;
     let totalSec = 0;
-    for (let i = durationArr.length - 1; i >= 0; i--) {
+    for (let i = durationArr?.length - 1; i >= 0; i--) {
       totalSec += durationArr[i] * 60 ** p;
       p += 1;
     }
@@ -73,7 +74,6 @@ export class YoutubeService {
           addHeader: ['referer:youtube.com', 'user-agent:googlebot'],
         },
       );
-      console.log('something');
       if (!playInfo) return null;
       const playUri = playInfo?.requested_formats?.find((d: any) =>
         d.resolution.includes('audio'),
@@ -86,12 +86,11 @@ export class YoutubeService {
       const expireValue = queryParams.get('expire');
       const playUriExpire = new Date();
       playUriExpire.setTime(Number(expireValue) * 1000);
-      console.log(playUriExpire.toLocaleString());
       const data: YoutubeTrack = {
         code,
         name: playInfo.title,
         duration_ms: playInfo.duration * 1000,
-        isLive: playInfo.is_live,
+        isLive: !playInfo.length ? false : true,
         playUri: playInfo.requested_formats[1].url,
         image: playInfo.thumbnail,
         playUriExpire,

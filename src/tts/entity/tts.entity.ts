@@ -4,7 +4,6 @@ import {
   Entity,
   JoinColumn,
   OneToOne,
-  PrimaryColumn,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
@@ -19,14 +18,9 @@ export class Tts {
   @Column()
   duration_ms: number;
 
-  @Column({
-    unique: true,
-    nullable: true,
-  })
-  audioId: number;
-
   @OneToOne((type) => Audio, {
     eager: true,
+    cascade: true,
     onDelete: 'SET NULL',
   })
   @JoinColumn({

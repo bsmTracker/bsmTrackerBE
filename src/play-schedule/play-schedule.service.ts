@@ -19,7 +19,6 @@ import { PlayScheduleTimeDto } from './dto/playScheduleTime';
 import { In, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PlayerService } from 'src/player/player.service';
-import { AudioService } from 'src/audio/audio.service';
 import { SpeakerService } from 'src/speaker/speaker.service';
 import { TtsService } from 'src/tts/tts.service';
 import Track from 'src/track/entity/Track.entity';
@@ -31,6 +30,8 @@ import { DayOfWeek } from './entity/dayOfWeek.entity';
 import { Time } from './entity/time.entity';
 import { TimeType } from './type/Time.type';
 import { DateEntity } from './entity/date.entity';
+import Playlist from 'src/playlist/entity/playlist.entity';
+import { AudioService } from 'src/audio/audio.service';
 
 // 은근 고친게 많다, 무턱대고 서두르는것은 좋지 않다 하하하핳 ,,,,,,;;;;
 // 발견하고 고쳐서 행복 하다 하하하핳 ,,,,,,,,,,
@@ -39,13 +40,15 @@ import { DateEntity } from './entity/date.entity';
 export class PlayScheduleService implements OnApplicationBootstrap {
   constructor(
     private scheduleService: ScheduleService,
-    private audioService: AudioService,
     private ttsService: TtsService,
+    private audioService: AudioService,
     @Inject(forwardRef(() => PlayerService))
     private playerService: PlayerService,
     private speakerService: SpeakerService,
     @InjectRepository(PlaySchedule)
     private playScheduleRepository: Repository<PlaySchedule>,
+    @InjectRepository(Playlist)
+    private playlistRepository: Repository<Playlist>,
     @InjectRepository(Track)
     private trackRepository: Repository<Track>,
     @InjectRepository(DayOfWeek)
@@ -186,68 +189,83 @@ export class PlayScheduleService implements OnApplicationBootstrap {
   }
 
   public async addPlaySchedule(
-    playScheduleTimeDto: PlayScheduleDetailDto,
+    playScheduleDetailDto: PlayScheduleDetailDto,
   ): Promise<PlaySchedule> {
-    await this.checkPlayScheduleTimePolicy(playScheduleTimeDto);
-    if (playScheduleTimeDto.ttsId || playScheduleTimeDto.startMelodyId) {
-      const duplicatedP = await this.playScheduleRepository.findOne({
-        where: [
-          {
-            ttsId: playScheduleTimeDto.ttsId,
-          },
-          {
-            startMelodyId: playScheduleTimeDto.startMelodyId,
-          },
-        ],
-      });
+    await this.checkPlayScheduleTimePolicy(playScheduleDetailDto);
 
-      if (duplicatedP) {
-        throw new ConflictException(
-          'TTSId 또는 startMelodyId는 이미 등록되어 있는 스케쥴이 있습니다.',
-        );
+    let startMelody = null;
+    let tts = null;
+    let playlist = null;
+    let dateList = [];
+    let daysOfWeek = [];
+
+    const startTime = await this.timeRepository.save(
+      playScheduleDetailDto.startTime,
+    );
+    const endTime = await this.timeRepository.save(
+      playScheduleDetailDto.endTime,
+    );
+
+    if (playScheduleDetailDto.startMelodyId) {
+      startMelody = await this.audioService.getAudio(
+        playScheduleDetailDto.startMelodyId,
+      );
+      if (!startMelody) {
+        throw new NotFoundException('startMelody를 찾을 수 없음');
+      }
+    }
+    if (playScheduleDetailDto.ttsId) {
+      tts = await this.ttsService.getTts(playScheduleDetailDto.ttsId);
+      if (!tts) {
+        throw new NotFoundException('tts를 찾을 수 없음');
+      }
+    }
+    if (playScheduleDetailDto.playlistId) {
+      playlist = await this.playlistRepository.findOne({
+        where: {
+          id: playScheduleDetailDto.playlistId,
+        },
+      });
+      if (!playlist) {
+        throw new NotFoundException('playlist를 찾을 수 없음');
       }
     }
 
-    let daysOfWeek = [];
-    let dateList = [];
-
-    if (playScheduleTimeDto.scheduleType === ScheduleEnum.DAYS_OF_WEEK) {
+    if (playScheduleDetailDto.scheduleType === ScheduleEnum.DAYS_OF_WEEK) {
       daysOfWeek = await Promise.all(
-        playScheduleTimeDto.daysOfWeek.map(async (dayOfWeek: DayOfWeek) => {
+        playScheduleDetailDto.daysOfWeek.map(async (dayOfWeek: DayOfWeek) => {
           const day = new DayOfWeek();
           day.day = dayOfWeek.day;
           return await this.daysOfWeekRepository.save(day);
         }),
       );
     }
-    delete playScheduleTimeDto.daysOfWeek;
 
-    if (playScheduleTimeDto.scheduleType === ScheduleEnum.EVENT) {
+    if (playScheduleDetailDto.scheduleType === ScheduleEnum.EVENT) {
       dateList = await Promise.all(
-        playScheduleTimeDto.dateList?.map(async (date_) => {
+        playScheduleDetailDto.dateList?.map(async (date_) => {
           const date = new DateEntity();
           date.date = date_.date;
           return await date.save();
         }),
       );
     }
-    delete playScheduleTimeDto.dateList;
 
-    const startTime = await this.timeRepository.save(
-      playScheduleTimeDto.startTime,
-    );
-    const endTime = await this.timeRepository.save(playScheduleTimeDto.endTime);
-    delete playScheduleTimeDto.startTime;
-    delete playScheduleTimeDto.endTime;
-
-    return await this.playScheduleRepository.save({
-      ...playScheduleTimeDto,
+    const playSchedule = await this.playScheduleRepository.save({
+      name: playScheduleDetailDto.name,
+      scheduleType: playScheduleDetailDto.scheduleType,
+      volume: playScheduleDetailDto.volume,
+      playlist,
+      startMelody,
+      tts,
       daysOfWeek,
       dateList,
+      active: false,
       startTime,
       endTime,
-      //DB에서 시간 계산하기 위해서
     });
+
+    return playSchedule;
   }
 
   public async deletePlaySchedule(playScheduleId: number): Promise<void> {
@@ -262,14 +280,18 @@ export class PlayScheduleService implements OnApplicationBootstrap {
     if (playSchedule.active) {
       await this.deActivePlaySchedule(playSchedule.id);
     }
-    if (playSchedule?.startMelody?.id) {
+    if (playSchedule?.startMelody) {
       await this.audioService.removeAudio(playSchedule.startMelody.id);
     }
-    if (playSchedule?.tts?.id) {
+    if (playSchedule?.tts) {
       await this.ttsService.removeTts(playSchedule.tts.id);
     }
-    await this.timeRepository.remove(playSchedule.startTime);
-    await this.timeRepository.remove(playSchedule.endTime);
+    if (playSchedule.startTime) {
+      await this.timeRepository.remove(playSchedule.startTime);
+    }
+    if (playSchedule.endTime) {
+      await this.timeRepository.remove(playSchedule.endTime);
+    }
     await this.playScheduleRepository.remove(playSchedule);
   }
 
@@ -290,42 +312,46 @@ export class PlayScheduleService implements OnApplicationBootstrap {
       //켜져 있다면 일단 스케쥴 끄기
       await this.deActivePlaySchedule(playSchedule.id);
     }
-    if (playSchedule?.startMelodyId !== playScheduleDto?.startMelodyId) {
+
+    if (playSchedule?.startMelody?.id !== playScheduleDto.startMelodyId) {
       if (playSchedule?.startMelody) {
         await this.audioService.removeAudio(playSchedule.startMelody.id);
       }
     }
-    if (playScheduleDto.startMelodyId === null) {
-      delete playScheduleDto.startMelodyId;
-    }
-    if (playSchedule?.ttsId !== playScheduleDto?.ttsId) {
+    if (playSchedule?.tts?.id !== playScheduleDto.ttsId) {
       if (playSchedule?.tts) {
         await this.ttsService.removeTts(playSchedule.tts.id);
       }
     }
-    if (playScheduleDto.ttsId === null) {
-      delete playScheduleDto.ttsId;
+
+    let startMelody = null;
+    let tts = null;
+    let playlist = null;
+
+    if (playScheduleDto.startMelodyId) {
+      startMelody = await this.audioService.getAudio(
+        playScheduleDto.startMelodyId,
+      );
+      if (!startMelody) {
+        throw new NotFoundException('startMelody를 찾을 수 없음');
+      }
     }
-    await this.daysOfWeekRepository.delete({
-      playScheduleId: playSchedule.id,
-    });
-    playScheduleDto.daysOfWeek.forEach(async (dayOfWeek: DayOfWeek) => {
-      const day = new DayOfWeek();
-      day.day = dayOfWeek.day;
-      day.playScheduleId = playSchedule.id;
-      return await this.daysOfWeekRepository.save(day);
-    });
-    delete playScheduleDto.daysOfWeek;
-    await this.dateRepository.delete({
-      playScheduleId: playSchedule.id,
-    });
-    playScheduleDto.dateList.forEach(async (dateE: DateEntity) => {
-      const date = new DateEntity();
-      date.date = dateE.date;
-      date.playScheduleId = playSchedule.id;
-      await this.dateRepository.save(date);
-    });
-    delete playScheduleDto.dateList;
+    if (playScheduleDto.ttsId) {
+      tts = await this.ttsService.getTts(playScheduleDto.ttsId);
+      if (!tts) {
+        throw new NotFoundException('tts를 찾을 수 없음');
+      }
+    }
+    if (playScheduleDto.playlistId) {
+      playlist = await this.playlistRepository.findOne({
+        where: {
+          id: playScheduleDto.playlistId,
+        },
+      });
+      if (!playlist) {
+        throw new NotFoundException('playlist를 찾을 수 없음');
+      }
+    }
 
     await this.timeRepository.update(
       {
@@ -339,19 +365,35 @@ export class PlayScheduleService implements OnApplicationBootstrap {
       },
       playScheduleDto.endTime,
     );
-    delete playScheduleDto.startTime;
-    delete playScheduleDto.endTime;
 
-    console.log(playScheduleDto);
+    await this.daysOfWeekRepository.remove(playSchedule.daysOfWeek);
+    playScheduleDto.daysOfWeek.forEach(async (dayOfWeek: DayOfWeek) => {
+      const day = new DayOfWeek();
+      day.day = dayOfWeek.day;
+      day.playSchedule = playSchedule;
+      return await this.daysOfWeekRepository.save(day);
+    });
+
+    await this.dateRepository.remove(playSchedule.dateList);
+    playScheduleDto.dateList.forEach(async (dateE: DateEntity) => {
+      const date = new DateEntity();
+      date.date = dateE.date;
+      date.playSchedule = playSchedule;
+      return await this.dateRepository.save(date);
+    });
 
     await this.playScheduleRepository.update(
       {
         id: playScheduleId,
       },
       {
-        ...playScheduleDto,
+        name: playScheduleDto.name,
+        scheduleType: playScheduleDto.scheduleType,
+        playlist,
+        startMelody,
+        tts,
+        volume: playScheduleDto.volume,
         active: false,
-        id: playScheduleId,
       },
     );
   }
@@ -411,7 +453,9 @@ export class PlayScheduleService implements OnApplicationBootstrap {
     const track = await this.trackRepository.findOne({
       where: {
         order,
-        playlistId,
+        playlist: {
+          id: playlistId,
+        },
       },
     });
     if (!track) {
@@ -465,13 +509,15 @@ export class PlayScheduleService implements OnApplicationBootstrap {
       timeStamp_ms += playSchedule.tts.audio.duration_ms;
     }
     let order = 1;
-    let playlistId = playSchedule.playlistId;
+    let playlistId = playSchedule.playlist.id;
     if (playSchedule.playlist) {
       while (true) {
         const startTrack = await this.trackRepository.findOne({
           where: {
             order,
-            playlistId,
+            playlist: {
+              id: playlistId,
+            },
           },
         });
         if (!startTrack) {

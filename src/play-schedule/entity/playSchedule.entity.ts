@@ -36,23 +36,6 @@ export class PlaySchedule extends BaseEntity {
   })
   scheduleType: ScheduleEnum;
 
-  @Column({
-    nullable: true,
-  })
-  playlistId: number;
-
-  @Column({
-    unique: true,
-    nullable: true,
-  })
-  startMelodyId: number;
-
-  @Column({
-    unique: true,
-    nullable: true,
-  })
-  ttsId: number;
-
   @ManyToOne((type) => Playlist, (playlist) => playlist.playSchedules, {
     eager: true,
     onDelete: 'SET NULL',
@@ -83,6 +66,28 @@ export class PlaySchedule extends BaseEntity {
   })
   tts: Tts;
 
+  //재생시작 시분초
+  @OneToOne((type) => Time, {
+    eager: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({
+    name: 'startTimeId',
+    referencedColumnName: 'id',
+  })
+  startTime: Time;
+
+  //재생종료 시분초
+  @OneToOne((type) => Time, {
+    eager: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({
+    name: 'endTimeId',
+    referencedColumnName: 'id',
+  })
+  endTime: Time;
+
   @OneToMany(() => DateEntity, (d) => d.playSchedule, {
     eager: true,
     cascade: true,
@@ -94,22 +99,6 @@ export class PlaySchedule extends BaseEntity {
     cascade: true,
   })
   daysOfWeek: DayOfWeek[];
-
-  //재생시작 시분초
-  @OneToOne((type) => Time, {
-    eager: true,
-    onDelete: 'SET NULL',
-  })
-  @JoinColumn()
-  startTime: Time;
-
-  //재생끝 시분초
-  @OneToOne((type) => Time, {
-    eager: true,
-    onDelete: 'SET NULL',
-  })
-  @JoinColumn()
-  endTime: Time;
 
   @Column()
   volume: number;

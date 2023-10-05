@@ -6,7 +6,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as dotenv from 'dotenv';
 import { createFolder } from './Utils/multer';
-
+import * as socketio from 'socket.io';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {});
   app.setGlobalPrefix('api');

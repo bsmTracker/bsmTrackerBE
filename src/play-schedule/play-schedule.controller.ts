@@ -21,12 +21,12 @@ import { PlaySchedule } from './entity/playSchedule.entity';
 import { BroadcastDetailDto } from './dto/broadcastDetail.dto';
 
 @Controller('play-schedule')
+@UseGuards(AuthGuard, LevelGuard)
+@Level(LevelType.ADMIN)
 export class PlayScheduleController {
   constructor(private playScheduleService: PlayScheduleService) {}
   //  o
   @Post('/')
-  @UseGuards(AuthGuard, LevelGuard)
-  @Level(LevelType.ADMIN)
   @UsePipes(ValidationPipe)
   async addPlaySchedule(
     @Body() addPlayScheduleDto: PlayScheduleDetailDto,
@@ -51,8 +51,6 @@ export class PlayScheduleController {
   }
 
   @Post('/:id/toggleActivation')
-  @UseGuards(AuthGuard, LevelGuard)
-  @Level(LevelType.ADMIN)
   async setScheduleActivation(
     @Param('id', ParseIntPipe) playScheduleId: number,
   ) {
@@ -63,8 +61,6 @@ export class PlayScheduleController {
 
   // o
   @Put('/:playScheduleId')
-  @UseGuards(AuthGuard, LevelGuard)
-  @Level(LevelType.ADMIN)
   @UsePipes(ValidationPipe)
   async editPlaySchedule(
     @Body() editPlaytimeDto: PlayScheduleDetailDto,
@@ -78,8 +74,6 @@ export class PlayScheduleController {
 
   //  o
   @Delete('/:playScheduleId')
-  @UseGuards(AuthGuard, LevelGuard)
-  @Level(LevelType.ADMIN)
   async deletePlaySchedule(
     @Param('playScheduleId', ParseIntPipe) playScheduleId: number,
   ): Promise<void> {
@@ -87,8 +81,6 @@ export class PlayScheduleController {
   }
 
   @Post('/broadcast')
-  @UseGuards(AuthGuard, LevelGuard)
-  @Level(LevelType.ADMIN)
   @UsePipes(ValidationPipe)
   async broadcast(@Body() broadcastDetailDto: BroadcastDetailDto) {
     await this.playScheduleService.broadcastLive(
@@ -98,8 +90,6 @@ export class PlayScheduleController {
   }
 
   @Post('/emergencyStop')
-  @UseGuards(AuthGuard, LevelGuard)
-  @Level(LevelType.ADMIN)
   async emergencyStop() {
     await this.playScheduleService.emergencyStop();
   }

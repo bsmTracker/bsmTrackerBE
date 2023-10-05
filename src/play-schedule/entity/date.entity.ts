@@ -13,10 +13,8 @@ export class DateEntity extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({
-    nullable: true,
-  })
-  playScheduleId: number;
+  @Column()
+  date: string;
 
   @ManyToOne((type) => PlaySchedule, (playSchedule) => playSchedule.dateList, {
     onDelete: 'CASCADE',
@@ -25,7 +23,4 @@ export class DateEntity extends BaseEntity {
     name: 'playScheduleId',
   })
   playSchedule: PlaySchedule;
-
-  @Column()
-  date: string;
 }

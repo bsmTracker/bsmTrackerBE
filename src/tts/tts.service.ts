@@ -31,7 +31,6 @@ export class TtsService {
     return await this.ttsRepository.save({
       content,
       duration_ms: audio.duration_ms,
-      audioId: audio.id,
       audio: audio,
     });
   }
@@ -44,9 +43,6 @@ export class TtsService {
     });
     if (tts == null) {
       throw new NotFoundException();
-    }
-    if (tts?.audio?.id != null) {
-      await this.audioService.removeAudio(tts.audio.id);
     }
     await this.ttsRepository.remove(tts);
   }

@@ -14,15 +14,14 @@ import { Audio } from 'src/audio/entity/audio.entity';
 export default class Track extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
-  //어디 플레이리스트에
-  @Column()
-  playlistId: number;
+
   //어떤 노래
   @Column()
   code: string;
 
+  //어떤 플레이리스트에
   @ManyToOne((type) => Playlist, (playlist) => playlist.tracks, {
-    onDelete: 'CASCADE',
+    eager: true,
   })
   @JoinColumn({
     name: 'playlistId',
@@ -43,12 +42,6 @@ export default class Track extends BaseEntity {
 
   @Column()
   duration_ms: number;
-
-  @Column({
-    nullable: true,
-    unique: true,
-  })
-  audioId: number;
 
   @OneToOne(() => Audio, {
     eager: true,

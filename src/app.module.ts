@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, RequestMethod } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -17,6 +17,7 @@ import { SpeakerModule } from './speaker/speaker.module';
 import { TtsModule } from './tts/tts.module';
 import { YoutubeModule } from './youtube/youtube.module';
 import { PlayerModule } from './player/player.module';
+import { ChartModule } from './chart/chart.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { PlayerModule } from './player/player.module';
     TtsModule,
     YoutubeModule,
     PlayerModule,
+    ChartModule,
   ],
   controllers: [AppController, UserController],
   providers: [AppService, UserService],

@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  OnApplicationBootstrap,
   OnModuleInit,
 } from '@nestjs/common';
 import { YoutubeService } from 'src/youtube/youtube.service';
@@ -62,7 +61,9 @@ export class TrackService implements OnModuleInit {
           const saved = await this.trackRepository.findOne({
             where: {
               code: youtubeTrack.code,
-              playlistId,
+              playlist: {
+                id: playlistId,
+              },
             },
           });
           return {
@@ -84,7 +85,12 @@ export class TrackService implements OnModuleInit {
       throw new BadRequestException('플레이리스트를 찾을 수 없습니다');
     }
     let playlistTrack: Track = await this.trackRepository.findOne({
-      where: trackSaveDto,
+      where: {
+        playlist: {
+          id: trackSaveDto.playlistId,
+        },
+        code: trackSaveDto.code,
+      },
     });
     if (playlistTrack) {
       throw new BadRequestException(
@@ -104,7 +110,9 @@ export class TrackService implements OnModuleInit {
     }
     const lastTrack = await this.trackRepository.findOne({
       where: {
-        playlistId: trackSaveDto.playlistId,
+        playlist: {
+          id: trackSaveDto.playlistId,
+        },
       },
       order: {
         order: 'DESC',
@@ -115,16 +123,18 @@ export class TrackService implements OnModuleInit {
       youtubeTrack.duration_ms,
     );
     playlistTrack = await this.trackRepository.save({
-      playlistId: trackSaveDto.playlistId,
+      playlist,
       code: youtubeTrack.code,
       name: youtubeTrack.name,
       image: youtubeTrack.image,
       duration_ms: youtubeTrack.duration_ms,
-      audioId: audio.id,
+      audio: audio,
       order: lastTrack ? lastTrack.order + 1 : 1,
       playUriExpire: youtubeTrack.playUriExpire,
     });
-    await this.playlistService.updatePlaylistMetaData(playlistTrack.playlistId);
+    await this.playlistService.updatePlaylistMetaData(
+      playlistTrack.playlist.id,
+    );
     await this.setTrackUpdateSchedule(playlistTrack);
   }
 
@@ -155,7 +165,6 @@ export class TrackService implements OnModuleInit {
         id: trackId,
       },
     });
-    // console.log(playlistTrack);
     if (!playlistTrack) {
       throw new NotFoundException();
     }
@@ -164,25 +173,23 @@ export class TrackService implements OnModuleInit {
       playlistTrack.code,
     );
     if (!youtubeTrack) {
-      await this.unSaveTrack(playlistTrack);
+      await this.unSaveTrack({
+        code: playlistTrack.code,
+        playlistId: playlistTrack.playlist.id,
+      });
       throw new NotFoundException('유튜브에서 영상이 삭제된것으로 보여집니다.');
-    }
-    if (playlistTrack.audio) {
-      await this.audioService.removeAudio(playlistTrack.audioId);
     }
     const refreshedYoutubeTrackAudio = await this.audioService.saveCloudAudio(
       youtubeTrack.playUri,
       youtubeTrack.duration_ms,
     );
-
-    ///여기부분 보기 ////
-    // console.log(refreshedYoutubeTrackAudio);
+    await this.audioService.removeAudio(playlistTrack.audio.id);
     await this.trackRepository.update(
       {
         id: playlistTrack.id,
       },
       {
-        audioId: refreshedYoutubeTrackAudio.id,
+        audio: refreshedYoutubeTrackAudio,
         playUriExpire: youtubeTrack.playUriExpire,
       },
     );
@@ -192,7 +199,7 @@ export class TrackService implements OnModuleInit {
       },
     });
     await this.playlistService.updatePlaylistMetaData(
-      updatedPlaylistTrack.playlistId,
+      updatedPlaylistTrack.playlist.id,
     );
     await this.setTrackUpdateSchedule(updatedPlaylistTrack);
     return updatedPlaylistTrack;
@@ -214,14 +221,18 @@ export class TrackService implements OnModuleInit {
     let playlistTrack = await this.trackRepository.findOne({
       where: {
         order: fromIndex,
-        playlistId,
+        playlist: {
+          id: playlistId,
+        },
       },
     });
     if (fromIndex > toIndex) {
       await this.trackRepository.update(
         {
           order: Between(toIndex, fromIndex - 1),
-          playlistId,
+          playlist: {
+            id: playlistId,
+          },
         },
         { order: () => '`order` + 1' },
       );
@@ -230,7 +241,9 @@ export class TrackService implements OnModuleInit {
       await this.trackRepository.update(
         {
           order: Between(fromIndex + 1, toIndex),
-          playlistId,
+          playlist: {
+            id: playlistId,
+          },
         },
         { order: () => '`order` - 1' },
       );
@@ -248,27 +261,35 @@ export class TrackService implements OnModuleInit {
 
   async unSaveTrack(trackSaveDto: TrackSaveDto) {
     let playlistTrack: Track = await this.trackRepository.findOne({
-      where: trackSaveDto,
+      where: {
+        playlist: {
+          id: trackSaveDto.playlistId,
+        },
+        code: trackSaveDto.code,
+      },
     });
     if (!playlistTrack) {
       throw new NotFoundException();
     }
     const lastTrack = await this.trackRepository.findOne({
       where: {
-        playlistId: playlistTrack.playlistId,
+        playlist: {
+          id: playlistTrack.playlist.id,
+        },
       },
       order: {
         order: 'DESC',
       },
     });
     await this.changeTrackIndex(
-      playlistTrack.playlistId,
+      playlistTrack.playlist.id,
       playlistTrack.order,
       lastTrack.order,
     );
-    await this.audioService.removeAudio(playlistTrack.audioId);
     await this.trackRepository.remove(playlistTrack);
-    await this.playlistService.updatePlaylistMetaData(playlistTrack.playlistId);
+    await this.playlistService.updatePlaylistMetaData(
+      playlistTrack.playlist.id,
+    );
     this.unSetTrackUpdateSchedule(playlistTrack);
   }
 }

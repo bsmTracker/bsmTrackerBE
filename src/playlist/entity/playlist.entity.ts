@@ -7,8 +7,10 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+
 import Track from '../../track/entity/Track.entity';
 import { PlaySchedule } from '../../play-schedule/entity/playSchedule.entity';
+import { ChartTrack } from 'src/chart/entity/chart-track.entity';
 
 @Entity()
 export default class Playlist extends BaseEntity {
@@ -32,10 +34,11 @@ export default class Playlist extends BaseEntity {
   })
   duration_s: number;
 
-  @OneToMany((type) => Track, (track) => track.playlist, {
-    cascade: true,
-  })
+  @OneToMany((type) => Track, (track) => track.playlist)
   tracks: Track[];
+
+  @OneToMany((type) => ChartTrack, (chartTrack) => chartTrack.playlist)
+  chartTracks: ChartTrack[];
 
   @CreateDateColumn()
   createdAt: Date;

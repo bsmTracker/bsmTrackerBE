@@ -23,7 +23,6 @@ export class TrackController {
   //검색 API
   @UsePipes(ValidationPipe)
   @UseGuards(AuthGuard)
-  @Level(LevelType.ADMIN)
   @Get('/search')
   async search(
     @Query('q') q: string,
@@ -52,7 +51,6 @@ export class TrackController {
     @Body('toIndex') toIndex: number,
     @Body('playlistId') playlistId: number,
   ) {
-    console.log(fromIndex, toIndex, playlistId);
     return await this.trackService.changeTrackIndex(
       playlistId,
       fromIndex,

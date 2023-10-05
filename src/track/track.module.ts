@@ -13,6 +13,7 @@ import { AudioService } from 'src/audio/audio.service';
 import { PlayerModule } from 'src/player/player.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ScheduleService } from 'src/schedule/schedule.service';
+import { TrackSubscriber } from './entity/subscriber/track.subscriber';
 
 @Module({
   imports: [
@@ -30,8 +31,10 @@ import { ScheduleService } from 'src/schedule/schedule.service';
     PlaylistService,
     AudioService,
     ScheduleService,
+    TrackSubscriber,
   ],
   exports: [
+    AuthModule,
     PlaylistService,
     TrackService,
     YoutubeService,

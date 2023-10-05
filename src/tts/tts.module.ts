@@ -5,6 +5,7 @@ import { AudioService } from 'src/audio/audio.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Tts } from './entity/tts.entity';
 import { AudioModule } from 'src/audio/audio.module';
+import { AuthModule } from 'src/auth/auth.module';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Tts]), AudioModule],

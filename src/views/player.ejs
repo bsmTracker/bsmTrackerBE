@@ -62,6 +62,7 @@
       if (currentAudio) {
         currentAudio.pause();
       }
+      console.log(data);
       currentAudio = new Audio(data.src);
       affectVolume();
       console.log(data.startTime / 1000);

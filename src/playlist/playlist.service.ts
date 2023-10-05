@@ -2,14 +2,13 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import Playlist from './entity/playlist.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { PlayerService } from 'src/player/player.service';
 import Track from 'src/track/entity/Track.entity';
 
 @Injectable()
 export class PlaylistService {
   constructor(
     @InjectRepository(Playlist)
-    private playlistRepository: Repository<Playlist>, // private trackService: TrackService,
+    private playlistRepository: Repository<Playlist>,
     @InjectRepository(Track)
     private trackRepository: Repository<Track>,
   ) {}
@@ -69,9 +68,12 @@ export class PlaylistService {
 
   async updatePlaylistMetaData(playlistId: number) {
     if (!playlistId) return;
-    const { trackCount, total_duration_ms } = await this.trackRepository
-      .createQueryBuilder('track')
-      .where('playlistId = :playlistId', { playlistId })
+    const { trackCount, total_duration_ms } = await this.playlistRepository
+      .createQueryBuilder('playlist')
+      .where('playlist.id=:playlistId', {
+        playlistId,
+      })
+      .leftJoinAndSelect('playlist.tracks', 'track')
       .select('COUNT(track.id)', 'trackCount')
       .addSelect('SUM(track.duration_ms)', 'total_duration_ms')
       .getRawOne();

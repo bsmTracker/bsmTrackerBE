@@ -20,7 +20,6 @@ export class AudioService {
       },
     });
     if (!audio) {
-      console.log(audio);
       throw new NotFoundException();
     }
     await this.audioRepository.remove(audio);
@@ -45,6 +44,14 @@ export class AudioService {
       AudioType: 'cloud',
       duration_ms,
       path: externalPath,
+    });
+  }
+
+  async getAudio(audioId: number) {
+    return await this.audioRepository.findOne({
+      where: {
+        id: audioId,
+      },
     });
   }
 }

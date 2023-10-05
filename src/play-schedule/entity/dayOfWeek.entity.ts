@@ -13,23 +13,19 @@ export class DayOfWeek extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({
-    nullable: true,
-  })
-  playScheduleId: number;
+  @Column()
+  day: number;
 
   @ManyToOne(
     (type) => PlaySchedule,
     (playSchedule) => playSchedule.daysOfWeek,
     {
       onDelete: 'CASCADE',
+      orphanedRowAction: 'delete',
     },
   )
   @JoinColumn({
     name: 'playScheduleId',
   })
   playSchedule: PlaySchedule;
-
-  @Column()
-  day: number;
 }

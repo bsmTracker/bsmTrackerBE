@@ -17,6 +17,8 @@ import { PlaylistService } from './playlist.service';
 import Playlist from './entity/playlist.entity';
 
 @Controller('playlist')
+@UseGuards(AuthGuard, LevelGuard)
+@Level(LevelType.ADMIN)
 export class PlaylistController {
   constructor(private playlistService: PlaylistService) {}
 
@@ -35,8 +37,6 @@ export class PlaylistController {
 
   //재생목록 만들기  o
   @Post('/')
-  @UseGuards(AuthGuard, LevelGuard)
-  @Level(LevelType.ADMIN)
   async createPlaylist(@Body('name') name: string): Promise<Playlist> {
     if (!name) {
       throw new BadRequestException('재생목록이름을 보내주세요');
@@ -46,8 +46,6 @@ export class PlaylistController {
 
   //재생목록 삭제  o
   @Delete('/:playlistId')
-  @UseGuards(AuthGuard, LevelGuard)
-  @Level(LevelType.ADMIN)
   async deletePlaylist(
     @Param('playlistId', ParseIntPipe) playlistId: number,
   ): Promise<void> {
