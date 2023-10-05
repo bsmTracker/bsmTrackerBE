@@ -3,6 +3,7 @@ import {
   HttpStatus,
   Inject,
   Injectable,
+  OnModuleInit,
   forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
