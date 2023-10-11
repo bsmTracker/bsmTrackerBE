@@ -37,9 +37,6 @@ export default class Playlist extends BaseEntity {
   @OneToMany((type) => Track, (track) => track.playlist)
   tracks: Track[];
 
-  @OneToMany((type) => ChartTrack, (chartTrack) => chartTrack.playlist)
-  chartTracks: ChartTrack[];
-
   @CreateDateColumn()
   createdAt: Date;
 
