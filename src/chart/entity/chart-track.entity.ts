@@ -34,7 +34,9 @@ export class ChartTrack extends BaseEntity {
   @Column()
   userId: number;
 
-  @ManyToOne((type) => User)
+  @ManyToOne((type) => User, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({
     name: 'userId',
     referencedColumnName: 'id',
