@@ -94,7 +94,7 @@ export class AuthService {
       // 유저를 저장한다.
       const newUser = new User();
       newUser.email = resource.email;
-      newUser.name = resource?.[resource.role.toUpperCase]?.name ?? '?';
+      newUser.name = resource?.[resource.role.toLowerCase()]?.name ?? '?';
       await newUser.save();
       userInfo = await this.userService.getUserByFields({
         where: {
