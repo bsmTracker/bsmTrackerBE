@@ -11,7 +11,6 @@ import {
 
 import { Like } from './like.entity';
 import { User } from 'src/user/entity/user.entity';
-import Playlist from 'src/playlist/entity/playlist.entity';
 
 @Entity()
 export class ChartTrack extends BaseEntity {
@@ -31,9 +30,6 @@ export class ChartTrack extends BaseEntity {
   @Column()
   duration_ms: number;
 
-  @Column()
-  userId: number;
-
   @ManyToOne((type) => User, {
     onDelete: 'CASCADE',
   })
@@ -48,16 +44,9 @@ export class ChartTrack extends BaseEntity {
   })
   likeCount: number;
 
-  @ManyToOne((type) => Playlist, (playlist) => playlist.chartTracks, {
-    onDelete: 'CASCADE',
+  @OneToMany((type) => Like, (like) => like.chartTrack, {
+    cascade: true,
   })
-  @JoinColumn({
-    name: 'playlistId',
-    referencedColumnName: 'id',
-  })
-  playlist: Playlist;
-
-  @OneToMany((type) => Like, (like) => like.chartTrack)
   likes: Like[];
 
   @CreateDateColumn()

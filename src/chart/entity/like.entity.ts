@@ -20,7 +20,9 @@ export class Like extends BaseEntity {
   @Column()
   chartTrackId: number;
 
-  @ManyToOne((type) => User)
+  @ManyToOne((type) => User, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({
     name: 'likerId',
     referencedColumnName: 'id',

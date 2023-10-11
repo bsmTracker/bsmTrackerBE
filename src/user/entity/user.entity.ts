@@ -3,13 +3,11 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  JoinColumn,
   OneToMany,
-  OneToOne,
-  PrimaryColumn,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { LevelType } from '../level-type';
+import { ChartTrack } from 'src/chart/entity/chart-track.entity';
 
 @Entity()
 export class User extends BaseEntity {

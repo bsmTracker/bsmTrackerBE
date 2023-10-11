@@ -3,7 +3,6 @@ import {
   HttpStatus,
   Inject,
   Injectable,
-  OnModuleInit,
   forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -148,7 +147,9 @@ export class ChartService {
     return await this.chartTrackRepository.find({
       select: ['code', 'createdAt', 'duration_ms', 'name', 'image'],
       where: {
-        userId: user.id,
+        user: {
+          id: user.id,
+        },
       },
     });
   }
